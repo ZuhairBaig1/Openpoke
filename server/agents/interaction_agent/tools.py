@@ -36,7 +36,7 @@ TOOL_SCHEMAS = [
                     },
                     "instructions": {"type": "string", "description": "Instructions for the agent to execute."},
                 },
-                "required": ["agent_name", "instructions"],
+                "required": ["agent_name", "instructions"],   #ToolResult arguments contain this
                 "additionalProperties": False,
             },
         },
@@ -54,7 +54,7 @@ TOOL_SCHEMAS = [
                         "description": "Plain-text message that will be shown to the user and recorded in the conversation log.",
                     },
                 },
-                "required": ["message"],
+                "required": ["message"],    #ToolResult arguments contain this
                 "additionalProperties": False,
             },
         },
@@ -80,7 +80,7 @@ TOOL_SCHEMAS = [
                         "description": "Email body content (plain text).",
                     },
                 },
-                "required": ["to", "subject", "body"],
+                "required": ["to", "subject", "body"],    #ToolResult arguments contain this
                 "additionalProperties": False,
             },
         },
@@ -98,7 +98,7 @@ TOOL_SCHEMAS = [
                         "description": "Brief explanation of why waiting (e.g., 'Message already sent', 'Draft already created').",
                     },
                 },
-                "required": ["reason"],
+                "required": ["reason"],    #ToolResult arguments contain this
                 "additionalProperties": False,
             },
         },
@@ -113,7 +113,7 @@ def send_message_to_agent(agent_name: str, instructions: str) -> ToolResult:
     """Send instructions to an execution agent."""
     roster = get_agent_roster()
     roster.load()
-    existing_agents = set(roster.get_agents())
+    existing_agents = set(roster.get_agents()) #list converted to set,ie unique only
     is_new = agent_name not in existing_agents
 
     if is_new:
@@ -226,13 +226,13 @@ def handle_tool_call(name: str, arguments: Any) -> ToolResult:
             return ToolResult(success=False, payload={"error": "Invalid arguments format"})
 
         if name == "send_message_to_agent":
-            return send_message_to_agent(**args)
+            return send_message_to_agent(**args) 
         if name == "send_message_to_user":
-            return send_message_to_user(**args)
+            return send_message_to_user(**args)  #send tool output directly to user
         if name == "send_draft":
-            return send_draft(**args)
+            return send_draft(**args)  #outputs draft that is then stored in messge history, used after confirmation
         if name == "wait":
-            return wait(**args)
+            return wait(**args) #returns reason for waiting, agent sees this and ends loop
 
         logger.warning("unexpected tool", extra={"tool": name})
         return ToolResult(success=False, payload={"error": f"Unknown tool: {name}"})

@@ -42,12 +42,12 @@ class AgentRoster:
 
                 # Open file and acquire exclusive lock
                 with open(self._roster_path, 'w') as f:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB) #process lockingfileforits use
                     try:
                         json.dump(self._agents, f, indent=2)
                         return
                     finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)#process releasing the file
 
             except BlockingIOError:
                 # Lock is held by another process
