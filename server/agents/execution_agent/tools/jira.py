@@ -49,14 +49,21 @@ _SCHEMAS: List[Dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "jira_update_issue",
-            "description": "Update fields (priority, summary, assignee) of an existing Jira issue.",
+            "description": "Update fields (priority, summary, assignee, due date) of an existing Jira issue.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "issue_key": {"type": "string", "description": "The issue key (e.g., 'PROJ-123')."},
                     "fields": {
                         "type": "object", 
-                        "description": "A dictionary of fields to update (e.g., {'priority': {'name': 'High'}})."
+                        "description": (
+                            "A dictionary of fields to update. "
+                            "IMPORTANT FORMATTING RULES:\n"
+                            "1. 'duedate': Use a simple string 'YYYY-MM-DD'.\n"
+                            "2. 'priority': Use an object {'name': 'High'}.\n"
+                            "3. 'assignee': Use an object {'id': 'accountId'}.\n"
+                            "4. 'summary': Use a simple string."
+                        )
                     },
                 },
                 "required": ["issue_key", "fields"],
@@ -76,6 +83,21 @@ _SCHEMAS: List[Dict[str, Any]] = [
                     "transition": {"type": "string", "description": "The name or ID of the transition."},
                 },
                 "required": ["issue_key", "transition"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "jira_get_available_transitions",
+            "description": "Get a list of valid transitions (next possible statuses) for a specific issue.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "issue_key": {"type": "string", "description": "The issue key (e.g., 'PROJ-123')."},
+                },
+                "required": ["issue_key"],
                 "additionalProperties": False,
             },
         },
@@ -175,6 +197,12 @@ def jira_transition_issue(issue_key: str, transition: str) -> Dict[str, Any]:
     if not uid: return {"error": "Jira not connected."}
     return _execute("JIRA_TRANSITION_ISSUE", uid, arguments)
 
+def jira_get_available_transitions(issue_key: str) -> Dict[str, Any]:
+    arguments = {"issue_id_or_key": issue_key}
+    uid = get_active_jira_user_id()
+    if not uid: return {"error": "Jira not connected."}
+    return _execute("JIRA_GET_ISSUE_TRANSITIONS", uid, arguments)
+
 def jira_list_projects(recent: Optional[int] = None) -> Dict[str, Any]:
     arguments = {"recent": recent}
     uid = get_active_jira_user_id()
@@ -199,6 +227,7 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
         "jira_add_comment": jira_add_comment,
         "jira_update_issue": jira_update_issue,
         "jira_transition_issue": jira_transition_issue,
+        "jira_get_available_transitions": jira_get_available_transitions,
         "jira_list_projects": jira_list_projects,
         "jira_get_project_details": jira_get_project_details,
         "jira_find_user": jira_find_user,

@@ -1,80 +1,86 @@
-"""Persistence helper for tracking recently processed Jira issue keys."""
+"""Persistence helper for tracking Jira issue state snapshots."""
 
 from __future__ import annotations
 
 import json
 import threading
-from collections import deque
 from pathlib import Path
-from typing import Deque, Iterable, List, Optional, Set
+from typing import Dict, Any, Optional, List
 
 from ...logging_config import logger
 
 class JiraSeenStore:
-    """Maintain a bounded set of Jira issue keys (e.g., 'PROJ-123') backed by a JSON file."""
+    """Maintain a bounded map of Jira snapshots (Key -> State) backed by JSON."""
 
-    def __init__(self, path: Path, max_entries: int = 500) -> None:
+    def __init__(self, path: Path, max_entries: int = 1000) -> None:
         self._path = path
         self._max_entries = max_entries
         self._lock = threading.Lock()
-        self._entries: Deque[str] = deque()
-        self._index: Set[str] = set()
+        # Storage format: { "PROJ-123": {"status": "In Progress", "assignee": "...", ...} }
+        self._snapshots: Dict[str, Dict[str, Any]] = {}
         self._load()
 
-    def is_seen(self, issue_key: str) -> bool:
+    def is_empty(self) -> bool:
+        """Returns True if no issues have been tracked yet (used for soft start)."""
+        with self._lock:
+            return len(self._snapshots) == 0
+
+    def get_snapshot(self, issue_key: str) -> Optional[Dict[str, Any]]:
+        """Retrieve the last known state of an issue."""
         normalized = self._normalize(issue_key)
-        if not normalized: return False
         with self._lock:
-            return normalized in self._index
+            return self._snapshots.get(normalized)
 
-    def mark_seen(self, issue_keys: Iterable[str]) -> None:
-        normalized_ids = [k for k in (self._normalize(k) for k in issue_keys) if k]
-        if not normalized_ids: return
-
+    def save_snapshot(self, issue_key: str, snapshot: Dict[str, Any]) -> None:
+        """Save or update the state of an issue."""
+        normalized = self._normalize(issue_key)
         with self._lock:
-            for key in normalized_ids:
-                if key in self._index:
-                    try:
-                        self._entries.remove(key)
-                    except ValueError: pass
-                else:
-                    self._index.add(key)
-                self._entries.append(key)
-
-            self._prune_locked()
+            # If it's a new entry and we are at capacity, remove the oldest (first) key
+            if normalized not in self._snapshots and len(self._snapshots) >= self._max_entries:
+                oldest_key = next(iter(self._snapshots))
+                del self._snapshots[oldest_key]
+            
+            self._snapshots[normalized] = snapshot
             self._persist_locked()
 
-    def clear(self) -> None:
+    def get_all_keys(self) -> List[str]:
+        """Returns all keys currently in the store."""
         with self._lock:
-            self._entries.clear()
-            self._index.clear()
+            return list(self._snapshots.keys())
+
+    def clear(self) -> None:
+        """Wipe all history."""
+        with self._lock:
+            self._snapshots.clear()
             self._persist_locked()
 
     def _normalize(self, issue_key: Optional[str]) -> str:
         return str(issue_key).strip().upper() if issue_key else ""
 
     def _load(self) -> None:
+        """Load dict snapshots from disk."""
+        if not self._path.exists():
+            return
+            
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
-            if not isinstance(data, list): return
-            for raw_key in data[-self._max_entries :]:
-                normalized = self._normalize(raw_key)
-                if normalized and normalized not in self._index:
-                    self._entries.append(normalized)
-                    self._index.add(normalized)
-        except FileNotFoundError: pass
+            if isinstance(data, dict):
+                self._snapshots = data
+            else:
+                # Compatibility: If old file was a list, ignore it and start fresh
+                logger.info("Jira seen-store format changed to snapshots; starting fresh.")
+                self._snapshots = {}
         except Exception as exc:
             logger.warning("Failed to load Jira seen-store", extra={"error": str(exc)})
 
-    def _prune_locked(self) -> None:
-        while len(self._entries) > self._max_entries:
-            oldest = self._entries.popleft()
-            self._index.discard(oldest)
-
     def _persist_locked(self) -> None:
+        """Write dict snapshots to disk."""
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps(list(self._entries)), encoding="utf-8")
+            self._path.write_text(
+                json.dumps(self._snapshots, indent=2), 
+                encoding="utf-8"
+            )
         except Exception as exc:
             logger.warning("Failed to persist Jira seen-store", extra={"error": str(exc)})
 

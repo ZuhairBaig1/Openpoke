@@ -56,10 +56,12 @@ class Settings(BaseModel):
     execution_agent_search_model: str = Field(default="anthropic/claude-sonnet-4")
     summarizer_model: str = Field(default="anthropic/claude-sonnet-4")
     email_classifier_model: str = Field(default="anthropic/claude-sonnet-4")
+    jira_classifier_model: str = Field(default="anthropic/claude-sonnet-4")
 
     # Credentials / integrations
     openrouter_api_key: Optional[str] = Field(default=os.getenv("OPENROUTER_API_KEY"))
     composio_gmail_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_GMAIL_AUTH_CONFIG_ID"))
+    composio_jira_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID"))
     composio_api_key: Optional[str] = Field(default=os.getenv("COMPOSIO_API_KEY"))
 
     # HTTP behaviour

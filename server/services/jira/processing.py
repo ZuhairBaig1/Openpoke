@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 from ...logging_config import logger
 from ...utils.timezones import convert_to_user_timezone
@@ -23,6 +23,8 @@ class ProcessedJiraIssue:
     updated: Optional[datetime]
     clean_description: str
     assignee: Optional[str]
+    # --- ADDED FIELD ---
+    due_date: Optional[str] 
 
 class JiraContentCleaner:
     """Clean and extract readable text from Jira API responses."""
@@ -59,23 +61,24 @@ def build_processed_issue(
     
     cleaner = cleaner or JiraContentCleaner()
     
-    # --- FIXED: Correct logic for updated_dt ---
+    # --- UPDATED TIMESTAMP LOGIC ---
     updated_dt: Optional[datetime] = None
     updated_raw = fields.get("updated")
     
     if updated_raw:
         try:
             # Jira strings look like "2024-05-20T10:00:00.000+0000"
-            # We normalize the offset and parse
             dt_str = updated_raw.replace('Z', '+00:00')
             dt = datetime.fromisoformat(dt_str)
             updated_dt = convert_to_user_timezone(dt)
         except Exception as exc:
             logger.debug(f"Failed to parse Jira timestamp: {updated_raw}", extra={"error": str(exc)})
-            # Fallback to current time if parsing fails
             updated_dt = convert_to_user_timezone(datetime.now(timezone.utc))
-    # -------------------------------------------
 
+    # --- NEW: Extract Due Date ---
+    # Jira returns "2024-05-30" or None
+    raw_due = fields.get("duedate")
+    
     return ProcessedJiraIssue(
         id=str(item.get("id", "")),
         key=item.get("key", ""),
@@ -86,7 +89,8 @@ def build_processed_issue(
         issuetype=fields.get("issuetype", {}).get("name", "Task"),
         updated=updated_dt,
         clean_description=cleaner.clean_text(fields.get("description")),
-        assignee=fields.get("assignee", {}).get("displayName") if fields.get("assignee") else "Unassigned"
+        assignee=fields.get("assignee", {}).get("displayName") if fields.get("assignee") else "Unassigned",
+        due_date=raw_due 
     )
 
 def parse_jira_search_response(
@@ -97,7 +101,6 @@ def parse_jira_search_response(
     """Helper to handle Composio's wrapped search response."""
     issues: List[ProcessedJiraIssue] = []
     
-    # Handle both list responses and dict/data responses from Composio
     data = []
     if isinstance(raw_result, dict):
         data = raw_result.get("data", [])
