@@ -149,7 +149,11 @@ class InteractionAgentRuntime:
 
         for iteration in range(self.MAX_TOOL_ITERATIONS):
             logger.info("Before calling _make_llm_call")
-            response = await self._make_llm_call(system_prompt, messages)  #llm call management agent
+            try:
+                response = await self._make_llm_call(system_prompt, messages)  #llm call management agent
+            except Exception as e:
+                logger.error("Interaction agent failed", exc_info=True)
+
             logger.info("After calling _make_llm_call")
             assistant_message = self._extract_assistant_message(response)  #return "messages" dict from OpenRouter API response structure
             logger.info("After extracting llm output")
