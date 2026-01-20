@@ -80,7 +80,10 @@ class InteractionAgentRuntime:
             # providing formatted message to interaction loop
             summary = await self._run_interaction_loop(system_prompt, messages)
 
+            print("\nexecuted _run_interaction_loop \n")
+
             final_response = self._finalize_response(summary)
+            print("\n_finalize_response executed\n")
 
             if final_response and not summary.user_messages:
                 self.conversation_log.record_reply(final_response)
