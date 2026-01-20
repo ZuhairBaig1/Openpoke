@@ -21,13 +21,15 @@ def _headers(*, api_key: Optional[str] = None) -> Dict[str, str]:
     key = (api_key or settings.openrouter_api_key or "").strip()
     if not key:
         raise OpenRouterError("Missing OpenRouter API key")
-
+    
+    logger.info("Received openrouter api_key")
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
 
+    logger.info("Returning headers")
     return headers
 
 
