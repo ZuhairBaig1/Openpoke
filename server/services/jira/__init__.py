@@ -7,8 +7,8 @@ from .client import (
     get_active_jira_user_id,
     initiate_connect,
 )
-#from .importance_classifier import ***
-#from .importance_watcher import ***
+from .importance_classifier import classify_jira_changes
+from .importance_watcher import ImportantIssueWatcher, get_important_issue_watcher
 from .processing import JiraContentCleaner, ProcessedJiraIssue, parse_jira_search_response
 from .seen_store import JiraSeenStore
 
@@ -22,4 +22,7 @@ __all__ = [
     "ProcessedJiraIssue",
     "parse_jira_search_response",
     "JiraSeenStore",
+    "get_important_issue_watcher",
+    "classify_jira_changes",
+    "ImportantIssueWatcher"
 ]

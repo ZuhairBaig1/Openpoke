@@ -227,4 +227,10 @@ class ImportantIssueWatcher:
             logger.error(f"Comment check failed for {issue_key}", extra={"error": str(exc)})
             return False, last_id, ""
 
-__all__ = ["ImportantIssueWatcher"]
+def get_important_issue_watcher() -> ImportantIssueWatcher:
+    global _watcher_instance
+    if _watcher_instance is None:
+        _watcher_instance = ImportantIssueWatcher
+    return _watcher_instance
+
+__all__ = ["ImportantIssueWatcher", "get_important_issue_watcher"]

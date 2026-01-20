@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 # Tool names for the LLM to reference
 TASK_TOOL_NAME = "task_jira_search"
-SEARCH_TOOL_NAME = "jira_fetch_issues"
+SEARCH_TOOL_NAME = "jira_search_issues_using_jql"
 COMPLETE_TOOL_NAME = "return_jira_search_results"
 
 _SCHEMAS: List[Dict[str, Any]] = [

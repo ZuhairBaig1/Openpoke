@@ -56,7 +56,7 @@ class JiraContentCleaner:
 
 _CONTENT_CLEANER = JiraContentCleaner()
 
-# --- Standardized Helpers (Mirroring Gmail) ---
+# --- Standardized Helpers ---
 
 def _create_error_response(call_id: str, query: Optional[str], error: str) -> Tuple[str, str]:
     result = JiraSearchToolResult(status="error", query=query, error=error)
@@ -80,7 +80,7 @@ def _validate_openrouter_config() -> Tuple[Optional[str], Optional[str]]:
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
     return {
         TASK_TOOL_NAME: task_jira_search
-        }
+    }
 
 # --- Main Task Orchestrator ---
 
@@ -119,7 +119,7 @@ async def _run_jira_search(
     model: str,
     api_key: str,
 ) -> List[Dict[str, Any]]:
-    """Execute the main Jira search orchestration loop (The Specialist)."""
+    """Execute the main Jira search orchestration loop."""
     messages: List[Dict[str, Any]] = [
         {"role": "user", "content": f"Please help me find Jira issues: {search_query}"}
     ]
@@ -127,7 +127,6 @@ async def _run_jira_search(
     found_issues: Dict[str, JiraSearchIssue] = {}
     selected_keys: Optional[List[str]] = None
     
-    # Internal tools provided to the specialist
     available_tools = [
         JIRA_SEARCH_JQL_SCHEMA,
         JIRA_GET_ISSUE_SCHEMA,
@@ -189,13 +188,11 @@ async def _execute_tool_calls(
             responses.append(_create_error_response(call_id, None, parse_error))
             continue
 
-        # 1. Handle Completion
         if name == COMPLETE_TOOL_NAME:
             keys, response_data = _handle_completion_tool(arguments)
             responses.append(_create_success_response(call_id, response_data))
             if keys is not None: completion_keys = keys
 
-        # 2. Handle JQL Search (The SEARCH_TOOL_NAME equivalent)
         elif name == SEARCH_TOOL_NAME:
             jql = arguments.get("jql", "")
             jql_queries.append(jql)
@@ -206,20 +203,17 @@ async def _execute_tool_calls(
             )
             responses.append(_create_success_response(call_id, result_model.model_dump(exclude_none=True)))
 
-        # 3. Handle Other Internal Tools via execute_jira_tool directly
         elif name in ["jira_get_issue", "jira_list_comments", "jira_list_projects"]:
-            # Standardizing argument mapping for Composio
             if name == "jira_get_issue":
                 args = {"issue_id_or_key": arguments.get("issue_key")}
             elif name == "jira_list_comments":
                 args = {"issue_id_or_key": arguments.get("issue_key")}
-            else: # list_projects
+            else:
                 args = {}
 
             raw_result = execute_jira_tool(name.upper(), composio_user_id, arguments=args)
             
-            # If it's a get_issue call, we want to update our found_issues pool
-            if name == "jira_get_issue" and "id" in raw_result:
+            if name == "jira_get_issue" and isinstance(raw_result, dict) and "id" in raw_result:
                 _map_raw_to_issue(raw_result, "direct_fetch", found_issues)
                 
             responses.append(_create_success_response(call_id, raw_result))
@@ -232,7 +226,6 @@ async def _perform_jql_search(
     found_issues: Dict[str, JiraSearchIssue],
     composio_user_id: str,
 ) -> JiraSearchToolResult:
-    """Executes search and maps results, mirroring Gmail's _perform_search."""
     jql = (arguments.get("jql") or "").strip()
     if not jql:
         return JiraSearchToolResult(status="error", error=ERROR_JQL_REQUIRED)
@@ -246,7 +239,6 @@ async def _perform_jql_search(
             arguments={"jql": jql, "maxResults": arguments.get("max_results", 10)}
         )
         
-        # Handle standard Composio data wrapping
         raw_issues = raw_result.get("data", []) if isinstance(raw_result, dict) else []
         
         parsed_issues = []
@@ -264,7 +256,6 @@ async def _perform_jql_search(
         return JiraSearchToolResult(status="error", query=jql, error=str(exc))
 
 def _map_raw_to_issue(item: Dict[str, Any], query: str, found_issues: Dict[str, JiraSearchIssue]) -> Optional[JiraSearchIssue]:
-    """Converts raw Jira API JSON to our structured JiraSearchIssue schema."""
     fields = item.get("fields", {})
     if not fields: return None
     
@@ -283,14 +274,7 @@ def _map_raw_to_issue(item: Dict[str, Any], query: str, found_issues: Dict[str, 
     return issue
 
 def _build_response(queries: List[str], found: Dict[str, JiraSearchIssue], selected: List[str]) -> Dict[str, Any]:
-    """
-    Builds the final response payload.
-    Uses TaskJiraSearchPayload to ensure the output structure matches the Gmail specialist.
-    """
-    # Deduplicate keys while maintaining order
     unique_keys = list(dict.fromkeys([k.strip() for k in selected if k and k.strip()]))
-    
-    # Map keys back to our rich Issue objects
     selected_issues = [found[k] for k in unique_keys if k in found]
     
     _LOG_STORE.record_action(
@@ -298,7 +282,6 @@ def _build_response(queries: List[str], found: Dict[str, JiraSearchIssue], selec
         description=f"{TASK_TOOL_NAME} completed | queries={len(set(queries))} | issues={len(selected_issues)}"
     )
 
-    # Wrap the list in the Pydantic Payload model before dumping to dict
     return TaskJiraSearchPayload(issues=selected_issues).model_dump(exclude_none=True)
 
 def _parse_arguments(raw_args: Any) -> Tuple[Dict[str, Any], Optional[str]]:
