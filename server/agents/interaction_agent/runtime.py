@@ -148,9 +148,9 @@ class InteractionAgentRuntime:
         summary = _LoopSummary()   #final output schema
 
         for iteration in range(self.MAX_TOOL_ITERATIONS):
-            logger.info("Before making llm call")
+            logger.info("Before calling _make_llm_call")
             response = await self._make_llm_call(system_prompt, messages)  #llm call management agent
-            logger.info("After making llm call")
+            logger.info("After calling _make_llm_call")
             assistant_message = self._extract_assistant_message(response)  #return "messages" dict from OpenRouter API response structure
             logger.info("After extracting llm output")
 
@@ -222,7 +222,7 @@ class InteractionAgentRuntime:
             "Interaction agent calling LLM",
             extra={"model": self.model, "tools": len(self.tool_schemas)},
         )
-        logger.info("before actual llm call")
+        logger.info("before calling request_chat_completion")
         return await request_chat_completion(
             model=self.model,
             messages=messages,
