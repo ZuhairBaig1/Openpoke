@@ -222,6 +222,7 @@ class InteractionAgentRuntime:
             "Interaction agent calling LLM",
             extra={"model": self.model, "tools": len(self.tool_schemas)},
         )
+        logger.info("before actual llm call")
         return await request_chat_completion(
             model=self.model,
             messages=messages,
@@ -229,6 +230,7 @@ class InteractionAgentRuntime:
             api_key=self.api_key,
             tools=self.tool_schemas,
         )
+    
 
     # Extract the assistant's message from the OpenRouter API response structure
     def _extract_assistant_message(self, response: Dict[str, Any]) -> Dict[str, Any]:
