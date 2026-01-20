@@ -148,8 +148,11 @@ class InteractionAgentRuntime:
         summary = _LoopSummary()   #final output schema
 
         for iteration in range(self.MAX_TOOL_ITERATIONS):
+            logger.info("Before making llm call")
             response = await self._make_llm_call(system_prompt, messages)  #llm call management agent
+            logger.info("After making llm call")
             assistant_message = self._extract_assistant_message(response)  #return "messages" dict from OpenRouter API response structure
+            logger.info("After extracting llm output")
 
             assistant_content = (assistant_message.get("content") or "").strip()
             if assistant_content:
@@ -169,10 +172,13 @@ class InteractionAgentRuntime:
             if not parsed_tool_calls:                                 #if no tools called,llms done,exit
                 break
 
+            logger.info("Tool call request")
+
             for tool_call in parsed_tool_calls:                       #if no error and interactive agent final answers till now, then tool call
                 summary.tool_names.append(tool_call.name)
 
                 if tool_call.name == "send_message_to_agent":         # if this is an execution agent call, then call it
+                    logger.info("Tool call made to agent")
                     agent_name = tool_call.arguments.get("agent_name")# whatagent to call
                     if isinstance(agent_name, str) and agent_name:    
                         summary.execution_agents.add(agent_name)
