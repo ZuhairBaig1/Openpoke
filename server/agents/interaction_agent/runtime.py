@@ -78,12 +78,12 @@ class InteractionAgentRuntime:
             logger.info("Processing user message through interaction agent")
 
             # providing formatted message to interaction loop
+            logger.info("before executing _run_interaction_loop")
             summary = await self._run_interaction_loop(system_prompt, messages)
-
-            print("\nexecuted _run_interaction_loop \n")
+            logger.info("executed _run_interaction_loop")
 
             final_response = self._finalize_response(summary)
-            print("\n_finalize_response executed\n")
+            logger.info("_finalize_response executed")
 
             if final_response and not summary.user_messages:
                 self.conversation_log.record_reply(final_response)
