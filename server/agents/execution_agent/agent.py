@@ -56,10 +56,9 @@ class ExecutionAgent:
         agent_purpose = f"Handle tasks related to: {self.name}"
 
         logger.info(f"Info being passed to SYSTEM_PROMPT_TEMPLATE.format, agent name = {self.name}, agent purpose = {agent_purpose}, in execution_agent\ agent")
-        return SYSTEM_PROMPT_TEMPLATE.format(
-            agent_name=self.name,
-            agent_purpose=agent_purpose
-        )
+        prompt = SYSTEM_PROMPT_TEMPLATE.replace("{agent_name}",self.name)
+        prompt = prompt.replace("{agent_purpose}",agent_purpose)
+        return prompt
 
     # Combine base system prompt with conversation history, applying conversation limits
     def build_system_prompt_with_history(self) -> str:
