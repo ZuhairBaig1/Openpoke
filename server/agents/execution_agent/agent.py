@@ -67,12 +67,17 @@ class ExecutionAgent:
         Returns:
             System prompt with embedded history transcript
         """
+        logger.info("Inside build_system_prompt_with_history in execution_agent\ agent")
         base_prompt = self.build_system_prompt()
+        logger.info("Crated base prompt, in execution_agent\ agent")
 
         # Load history transcript
+        logger.info("Loading transcript (execution agent logs), in \execution_agent\ agents")
         transcript = self._log_store.load_transcript(self.name)
+        logger.info("Loaded transcript (execution agent logs), in \execution_agent\ agents")
 
         if transcript:
+            logger.info("Transcripts exists, in \execution_agent\ agents")
             # Apply conversation limit if needed
             if self.conversation_limit and self.conversation_limit > 0:
                 # Parse entries and limit them
@@ -93,6 +98,7 @@ class ExecutionAgent:
 
             return f"{base_prompt}\n\n# Execution History\n\n{transcript}"
 
+        logger.info("Did not load transcripts, or does not exists, in \execution_agent\ agents")
         return base_prompt
 
     # Format current instruction as user message for LLM consumption
