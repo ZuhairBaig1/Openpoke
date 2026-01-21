@@ -16,7 +16,7 @@ def get_tool_schemas() -> List[Dict[str, Any]]:
         *gmail.get_schemas(),
         *jira.get_schemas(),
         *get_gmail_task_schemas(),
-        *get_gmail_task_schemas(),
+        *get_jira_task_schemas(),
         *triggers.get_schemas(),
     ]
 
