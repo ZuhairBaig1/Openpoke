@@ -42,6 +42,7 @@ class ExecutionAgentRuntime:
     # Main execution loop for running agent with LLM calls and tool execution
     async def execute(self, instructions: str) -> ExecutionResult:
         """Execute the agent with given instructions."""
+        logger.info("Inside execute in execution runtime")
         try:
             # Build system prompt with history
             system_prompt = self.agent.build_system_prompt_with_history()

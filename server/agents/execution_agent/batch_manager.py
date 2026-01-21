@@ -58,14 +58,14 @@ class ExecutionBatchManager:
         batch_id = await self._register_pending_execution(agent_name, instructions, request_id)
 
         try:
-            logger.info(f"[{agent_name}] Execution started")
+            logger.info(f"[{agent_name}] Execution started, in batch_manager rn")
             runtime = ExecutionAgentRuntime(agent_name=agent_name)
             logger.info("runtime.execute called")
             result = await asyncio.wait_for(
                 runtime.execute(instructions),
                 timeout=self.timeout_seconds,
             )
-            logger.info("runtime.execute complete")
+            logger.info("runtime.execute complete, in batch_manager rn")
             status = "SUCCESS" if result.success else "FAILED"
             logger.info(f"[{agent_name}] Execution finished: {status}")
         except asyncio.TimeoutError:
