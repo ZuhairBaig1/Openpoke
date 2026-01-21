@@ -52,8 +52,10 @@ class ExecutionAgent:
     # Generate system prompt template with agent name and purpose derived from name
     def build_system_prompt(self) -> str:
         """Build the system prompt for this agent."""
+        logger.info(f"Inside build_system_prompt in execution_agent\ agent, agent name = {self.name}")
         agent_purpose = f"Handle tasks related to: {self.name}"
 
+        logger.info(f"Info being passed to SYSTEM_PROMPT_TEMPLATE.format, agent name = {self.name}, agent purpose = {agent_purpose}, in execution_agent\ agent")
         return SYSTEM_PROMPT_TEMPLATE.format(
             agent_name=self.name,
             agent_purpose=agent_purpose
