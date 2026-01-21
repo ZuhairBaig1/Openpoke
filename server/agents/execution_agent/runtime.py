@@ -46,12 +46,15 @@ class ExecutionAgentRuntime:
         try:
             # Build system prompt with history
             system_prompt = self.agent.build_system_prompt_with_history()
+            logger.info("Built system_prompt, in execution runtime rn")
 
             # Start conversation with the instruction
             messages = [{"role": "user", "content": instructions}]
+            logger.info("Built user_message, in execution runtime rn")
             tools_executed: List[str] = []
             final_response: Optional[str] = None
 
+            logger.info("Just before all tool iterations, in execution agent rn")
             for iteration in range(self.MAX_TOOL_ITERATIONS):
                 logger.info(
                     f"[{self.agent.name}] Requesting plan (iteration {iteration + 1})"
