@@ -45,6 +45,7 @@ class ExecutionAgentRuntime:
         logger.info("Inside execute in execution runtime")
         try:
             # Build system prompt with history
+            logger.info("Inside try block, just before building system_prompt, in execution runtime rn")
             system_prompt = self.agent.build_system_prompt_with_history()
             logger.info("Built system_prompt, in execution runtime rn")
 
