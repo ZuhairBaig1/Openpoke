@@ -60,10 +60,12 @@ class ExecutionBatchManager:
         try:
             logger.info(f"[{agent_name}] Execution started")
             runtime = ExecutionAgentRuntime(agent_name=agent_name)
+            logger.info("runtime.execute called")
             result = await asyncio.wait_for(
                 runtime.execute(instructions),
                 timeout=self.timeout_seconds,
             )
+            logger.info("runtime.execute complete")
             status = "SUCCESS" if result.success else "FAILED"
             logger.info(f"[{agent_name}] Execution finished: {status}")
         except asyncio.TimeoutError:

@@ -55,6 +55,7 @@ class ExecutionAgentRuntime:
                 logger.info(
                     f"[{self.agent.name}] Requesting plan (iteration {iteration + 1})"
                 )
+                logger.info("_make_llm_call called in execution agent, in execution runtime rn")
                 response = await self._make_llm_call(system_prompt, messages, with_tools=True)
                 assistant_message = response.get("choices", [{}])[0].get("message", {})
 
@@ -69,6 +70,7 @@ class ExecutionAgentRuntime:
                     "content": assistant_message.get("content", "") or "",
                 }
                 if raw_tool_calls:
+                    logger.info("tool request made by execution agent, in execution runtime rn")
                     assistant_entry["tool_calls"] = raw_tool_calls
                 messages.append(assistant_entry)
 
@@ -78,8 +80,11 @@ class ExecutionAgentRuntime:
 
                 for tool_call in parsed_tool_calls:
                     tool_name = tool_call.get("name", "")
+                    logger.info(f"tool name: {tool_name}, in execution rntime rn")
                     tool_args = tool_call.get("arguments", {})
+                    logger.info(f"tool args: {tool_args}, in execution runtime rn")
                     call_id = tool_call.get("id")
+                    logger.info(f"call_id: {call_id}, in execution runtime rn")
 
                     if not tool_name:
                         logger.warning("Tool call missing name: %s", tool_call)
@@ -225,9 +230,11 @@ class ExecutionAgentRuntime:
         """Execute a tool. Returns (success, result)."""
         tool_func = self.tool_registry.get(tool_name)
         if not tool_func:
+            logger.info(f"Tool dosent exist: {tool_name}, inside execution runtime rn")
             return False, {"error": f"Unknown tool: {tool_name}"}
 
         try:
+            logger.info(f"Tool {tool_name} called, passing arguments, in execution runtime rn")
             result = tool_func(**arguments)
             if inspect.isawaitable(result):
                 result = await result
