@@ -42,7 +42,7 @@ class ExecutionAgentRuntime:
     # Main execution loop for running agent with LLM calls and tool execution
     async def execute(self, instructions: str) -> ExecutionResult:
         """Execute the agent with given instructions."""
-        logger.info("Inside execute in execution runtime")
+        logger.info("Inside execute in execution runtime, in execution runtime rn")
         try:
             # Build system prompt with history
             logger.info("Inside try block, just before building system_prompt, in execution runtime rn")

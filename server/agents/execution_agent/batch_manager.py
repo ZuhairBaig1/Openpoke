@@ -140,6 +140,7 @@ class ExecutionBatchManager:
                 dispatch_payload = self._format_batch_payload(state.results)
                 agent_names = [entry.agent_name for entry in state.results]
                 logger.info(f"Execution batch completed: {', '.join(agent_names)}")
+                logger.info(f"Executed all execution agents, in batch_manager rn")
                 self._batch_state = None
 
         if dispatch_payload:
