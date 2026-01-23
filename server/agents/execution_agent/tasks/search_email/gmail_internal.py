@@ -19,7 +19,7 @@ GMAIL_FETCH_EMAILS_SCHEMA = {
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {
+                "query":{
                     "type": "string",
                     "description": "Gmail search query (same syntax as Gmail UI).",
                 },
