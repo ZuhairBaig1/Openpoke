@@ -122,7 +122,7 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
 
 # --- Main API Methods ---
 
-def initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
+def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = payload.auth_config_id or settings.composio_jira_auth_config_id or ""
     if not auth_config_id:
         return error_response("Missing auth_config_id for Jira.", status_code=400)
@@ -143,7 +143,7 @@ def initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONRes
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
         return error_response("Failed to initiate Jira connect", status_code=500, detail=str(exc))
 
-def fetch_status(payload: JiraStatusPayload) -> JSONResponse:
+def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
     try:
@@ -197,7 +197,7 @@ def fetch_status(payload: JiraStatusPayload) -> JSONResponse:
         logger.exception("Jira status check failed")
         return error_response("Failed to fetch Jira status", status_code=500, detail=str(exc))
 
-def disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
+def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
     """Disconnects account with explicit error logging."""
     connection_id = _normalized(payload.connection_id) or _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)

@@ -20,6 +20,17 @@ from .gmail import (
     get_important_email_watcher,
     initiate_connect,
 )
+from .jira import (
+    JiraSeenStore,
+    ImportantIssueWatcher,
+    classify_jira_changes,
+    execute_jira_tool,
+    jira_fetch_status,
+    get_active_jira_user_id,
+    jira_initiate_connect,
+    get_important_issue_watcher,
+    jira_disconnect_account,
+)
 from .trigger_scheduler import get_trigger_scheduler
 from .triggers import get_trigger_service
 from .timezone_store import TimezoneStore, get_timezone_store

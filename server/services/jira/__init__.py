@@ -1,11 +1,11 @@
 """Jira-related service helpers."""
 
 from .client import (
-    disconnect_account,
+    jira_disconnect_account,
     execute_jira_tool,
-    fetch_status,
+    jira_fetch_status,
     get_active_jira_user_id,
-    initiate_connect,
+    jira_initiate_connect,
 )
 from .importance_classifier import classify_jira_changes
 from .importance_watcher import ImportantIssueWatcher, get_important_issue_watcher
@@ -14,9 +14,9 @@ from .seen_store import JiraSeenStore
 
 __all__ = [
     "execute_jira_tool",
-    "fetch_status",
-    "initiate_connect",
-    "disconnect_account",
+    "jira_fetch_status",
+    "jira_initiate_connect",
+    "jira_disconnect_account",
     "get_active_jira_user_id",
     "JiraContentCleaner",
     "ProcessedJiraIssue",
