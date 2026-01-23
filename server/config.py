@@ -20,6 +20,9 @@ def _load_env_file() -> None:
                 key, value = stripped.split("=", 1)
                 key, value = key.strip(), value.strip().strip("'\"")
                 if key and value and key not in os.environ:
+                    # Debug print
+                    if "COMPOSIO" in key:
+                        print(f"[DEBUG_ENV] Loading {key} = {value[:4]}...")
                     os.environ[key] = value
     except Exception:
         pass

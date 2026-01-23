@@ -123,7 +123,12 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
 # --- Main API Methods ---
 
 def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
-    auth_config_id = payload.auth_config_id or settings.composio_jira_auth_config_id or ""
+    auth_config_id = (
+        payload.auth_config_id 
+        or settings.composio_jira_auth_config_id 
+        or os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") 
+        or ""
+    )
     if not auth_config_id:
         return error_response("Missing auth_config_id for Jira.", status_code=400)
 
