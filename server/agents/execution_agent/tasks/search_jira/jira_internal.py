@@ -47,12 +47,12 @@ JIRA_SEARCH_JQL_SCHEMA = {
                 "fields_by_keys": {
                     "type": "boolean",
                     "description": "Set to true to reference fields by their keys (e.g., 'customfield_10000') instead of IDs.",
-                    "default": false
+                    "default": False                                    
                 },
                 "fail_fast": {
                     "type": "boolean",
                     "description": "If true, the search fails immediately if there is a partial error.",
-                    "default": false
+                    "default": False
                 },
                 "properties": {
                     "type": "array",
