@@ -12,14 +12,14 @@ export function useSettings() {
     try {
       const timezone = localStorage.getItem('user_timezone') || '';
       setSettings({ timezone });
-    } catch {}
+    } catch { }
   }, []);
 
   const persist = useCallback((s: Settings) => {
     setSettings(s);
     try {
       localStorage.setItem('user_timezone', s.timezone);
-    } catch {}
+    } catch { }
   }, []);
 
   return { settings, setSettings: persist } as const;
@@ -98,6 +98,11 @@ function deriveEmailFromPayload(payload: any): string {
   return '';
 }
 
+function deriveJiraDisplayName(payload: any): string {
+  if (!payload) return '';
+  return payload?.display_name || payload?.displayName || payload?.email || '';
+}
+
 export default function SettingsModal({
   open,
   onClose,
@@ -118,6 +123,17 @@ export default function SettingsModal({
   const [gmailEmail, setGmailEmail] = useState('');
   const [gmailConnId, setGmailConnId] = useState('');
   const [gmailProfile, setGmailProfile] = useState<Record<string, unknown> | null>(null);
+
+  // Jira state
+  const [connectingJira, setConnectingJira] = useState(false);
+  const [isRefreshingJira, setIsRefreshingJira] = useState(false);
+  const [isDisconnectingJira, setIsDisconnectingJira] = useState(false);
+  const [jiraStatusMessage, setJiraStatusMessage] = useState('');
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const [jiraDisplayName, setJiraDisplayName] = useState('');
+  const [jiraEmail, setJiraEmail] = useState('');
+  const [jiraConnId, setJiraConnId] = useState('');
+  const [jiraProfile, setJiraProfile] = useState<Record<string, unknown> | null>(null);
 
   const readStoredUserId = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -158,6 +174,17 @@ export default function SettingsModal({
     }
   }, [gmailConnId]);
 
+  const readStoredJiraConnectionRequestId = useCallback(() => {
+    if (jiraConnId) return jiraConnId;
+    if (typeof window === 'undefined') return '';
+    try {
+      return localStorage.getItem('jira_connection_request_id') || '';
+    } catch {
+      return '';
+    }
+  }, [jiraConnId]);
+
+  // Gmail localStorage initialization
   useEffect(() => {
     try {
       const savedConnected = localStorage.getItem('gmail_connected') === 'true';
@@ -169,7 +196,24 @@ export default function SettingsModal({
       if (savedConnected && savedEmail) {
         setGmailStatusMessage(`Connected as ${savedEmail}`);
       }
-    } catch {}
+    } catch { }
+  }, []);
+
+  // Jira localStorage initialization
+  useEffect(() => {
+    try {
+      const savedConnected = localStorage.getItem('jira_connected') === 'true';
+      const savedConnId = localStorage.getItem('jira_connection_request_id') || '';
+      const savedDisplayName = localStorage.getItem('jira_display_name') || '';
+      const savedEmail = localStorage.getItem('jira_email') || '';
+      setJiraConnected(savedConnected);
+      setJiraConnId(savedConnId);
+      setJiraDisplayName(savedDisplayName);
+      setJiraEmail(savedEmail);
+      if (savedConnected && (savedDisplayName || savedEmail)) {
+        setJiraStatusMessage(`Connected as ${savedDisplayName || savedEmail}`);
+      }
+    } catch { }
   }, []);
 
   const gmailProfileDetails = useMemo(() => {
@@ -212,7 +256,7 @@ export default function SettingsModal({
         setGmailConnId(connId);
         try {
           localStorage.setItem('gmail_connection_request_id', connId);
-        } catch {}
+        } catch { }
       }
       setGmailConnected(false);
       setGmailEmail('');
@@ -285,7 +329,7 @@ export default function SettingsModal({
           if (typeof data?.user_id === 'string' && data.user_id) {
             localStorage.setItem('openpoke_user_id', data.user_id);
           }
-        } catch {}
+        } catch { }
       } else {
         const statusText = typeof data?.status === 'string' && data.status && data.status !== 'UNKNOWN'
           ? `Status: ${data.status}`
@@ -294,7 +338,7 @@ export default function SettingsModal({
         try {
           localStorage.removeItem('gmail_connected');
           localStorage.removeItem('gmail_email');
-        } catch {}
+        } catch { }
       }
     } catch (e: any) {
       setGmailConnected(false);
@@ -340,13 +384,178 @@ export default function SettingsModal({
         localStorage.removeItem('gmail_email');
         localStorage.removeItem('gmail_connection_request_id');
         localStorage.removeItem('openpoke_user_id');
-      } catch {}
+      } catch { }
     } catch (e: any) {
       setGmailStatusMessage(e?.message || 'Failed to disconnect Gmail');
     } finally {
       setIsDisconnecting(false);
     }
   }, [readStoredConnectionRequestId, readStoredUserId]);
+
+  // --- Jira handlers ---
+  const handleConnectJira = useCallback(async () => {
+    try {
+      setConnectingJira(true);
+      setJiraStatusMessage('');
+      const userId = ensureUserId();
+      const resp = await fetch('/api/jira/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) {
+        const msg = data?.error || `Failed (${resp.status})`;
+        setJiraStatusMessage(msg);
+        return;
+      }
+      const url = data?.redirect_url;
+      const connId = data?.connection_request_id || '';
+      if (connId) {
+        setJiraConnId(connId);
+        try {
+          localStorage.setItem('jira_connection_request_id', connId);
+        } catch { }
+      }
+      setJiraConnected(false);
+      setJiraDisplayName('');
+      setJiraEmail('');
+      setJiraProfile(null);
+      if (url) {
+        window.open(url, '_blank', 'noopener');
+        setJiraStatusMessage('Jira authorization opened in a new tab. Complete it, then press "Refresh status".');
+      } else {
+        setJiraStatusMessage('Connection initiated. Refresh status once authorization completes.');
+      }
+    } catch (e: any) {
+      setJiraStatusMessage(e?.message || 'Failed to connect Jira');
+    } finally {
+      setConnectingJira(false);
+    }
+  }, [ensureUserId]);
+
+  const refreshJiraStatus = useCallback(async () => {
+    const userId = readStoredUserId();
+    const connectionRequestId = readStoredJiraConnectionRequestId();
+    if (!userId && !connectionRequestId) {
+      setJiraConnected(false);
+      setJiraProfile(null);
+      setJiraDisplayName('');
+      setJiraEmail('');
+      setJiraStatusMessage('Connect Jira to get started.');
+      return;
+    }
+
+    try {
+      setIsRefreshingJira(true);
+      setJiraStatusMessage('Refreshing Jira status…');
+      const resp = await fetch('/api/jira/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, connectionRequestId }),
+      });
+      const data = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || !data?.ok) {
+        const message = data?.error || `Failed (${resp.status})`;
+        setJiraConnected(false);
+        setJiraProfile(null);
+        setJiraDisplayName('');
+        setJiraEmail('');
+        setJiraStatusMessage(message);
+        return;
+      }
+
+      if (!jiraConnId && connectionRequestId) {
+        setJiraConnId(connectionRequestId);
+      }
+
+      const profileData = data?.profile && typeof data.profile === 'object' ? (data.profile as Record<string, unknown>) : null;
+      setJiraProfile(profileData);
+
+      const displayName = deriveJiraDisplayName({ display_name: data?.display_name, displayName: data?.displayName, email: data?.email, profile: profileData });
+      const email = typeof data?.email === 'string' ? data.email : '';
+      const connected = Boolean(data?.connected);
+
+      setJiraConnected(connected);
+      setJiraDisplayName(displayName);
+      setJiraEmail(email);
+
+      if (connected) {
+        const message = displayName ? `Connected as ${displayName}` : email ? `Connected as ${email}` : 'Jira connected.';
+        setJiraStatusMessage(message);
+        try {
+          localStorage.setItem('jira_connected', 'true');
+          if (displayName) localStorage.setItem('jira_display_name', displayName);
+          if (email) localStorage.setItem('jira_email', email);
+          if (typeof data?.user_id === 'string' && data.user_id) {
+            localStorage.setItem('openpoke_user_id', data.user_id);
+          }
+        } catch { }
+      } else {
+        const statusText = typeof data?.status === 'string' && data.status && data.status !== 'UNKNOWN'
+          ? `Status: ${data.status}`
+          : 'Not connected yet.';
+        setJiraStatusMessage(statusText);
+        try {
+          localStorage.removeItem('jira_connected');
+          localStorage.removeItem('jira_display_name');
+          localStorage.removeItem('jira_email');
+        } catch { }
+      }
+    } catch (e: any) {
+      setJiraConnected(false);
+      setJiraProfile(null);
+      setJiraDisplayName('');
+      setJiraEmail('');
+      setJiraStatusMessage(e?.message || 'Failed to check Jira status');
+    } finally {
+      setIsRefreshingJira(false);
+    }
+  }, [jiraConnId, readStoredJiraConnectionRequestId, readStoredUserId]);
+
+  const handleDisconnectJira = useCallback(async () => {
+    if (typeof window !== 'undefined') {
+      const proceed = window.confirm('Disconnect Jira from OpenPoke?');
+      if (!proceed) return;
+    }
+
+    try {
+      setIsDisconnectingJira(true);
+      setJiraStatusMessage('Disconnecting Jira…');
+      const userId = readStoredUserId();
+      const connectionRequestId = readStoredJiraConnectionRequestId();
+      const resp = await fetch('/api/jira/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, connectionRequestId }),
+      });
+      const data = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || !data?.ok) {
+        const message = data?.error || `Failed (${resp.status})`;
+        setJiraStatusMessage(message);
+        return;
+      }
+
+      setJiraConnected(false);
+      setJiraDisplayName('');
+      setJiraEmail('');
+      setJiraProfile(null);
+      setJiraConnId('');
+      setJiraStatusMessage('Jira disconnected.');
+      try {
+        localStorage.removeItem('jira_connected');
+        localStorage.removeItem('jira_display_name');
+        localStorage.removeItem('jira_email');
+        localStorage.removeItem('jira_connection_request_id');
+      } catch { }
+    } catch (e: any) {
+      setJiraStatusMessage(e?.message || 'Failed to disconnect Jira');
+    } finally {
+      setIsDisconnectingJira(false);
+    }
+  }, [readStoredJiraConnectionRequestId, readStoredUserId]);
 
   useEffect(() => {
     setTimezone(settings.timezone);
@@ -355,13 +564,18 @@ export default function SettingsModal({
   useEffect(() => {
     if (!open) return;
     void refreshGmailStatus();
-  }, [open, refreshGmailStatus]);
+    void refreshJiraStatus();
+  }, [open, refreshGmailStatus, refreshJiraStatus]);
 
   if (!open) return null;
 
   const connectButtonLabel = connectingGmail ? 'Opening…' : gmailConnected ? 'Reconnect' : 'Connect Gmail';
   const refreshButtonLabel = isRefreshingGmail ? 'Refreshing…' : 'Refresh status';
   const disconnectButtonLabel = isDisconnecting ? 'Disconnecting…' : 'Disconnect';
+
+  const jiraConnectButtonLabel = connectingJira ? 'Opening…' : jiraConnected ? 'Reconnect' : 'Connect Jira';
+  const jiraRefreshButtonLabel = isRefreshingJira ? 'Refreshing…' : 'Refresh status';
+  const jiraDisconnectButtonLabel = isDisconnectingJira ? 'Disconnecting…' : 'Disconnect';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -398,11 +612,10 @@ export default function SettingsModal({
                   </p>
                 </div>
                 <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
-                    gmailConnected
-                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                      : 'bg-amber-50 text-amber-700 ring-amber-200'
-                  }`}
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${gmailConnected
+                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                    : 'bg-amber-50 text-amber-700 ring-amber-200'
+                    }`}
                 >
                   {gmailConnected ? 'Connected' : 'Not connected'}
                 </span>
@@ -462,6 +675,74 @@ export default function SettingsModal({
                     aria-busy={isDisconnecting}
                   >
                     {disconnectButtonLabel}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Jira Integration */}
+            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 shadow-sm mt-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Jira (via Composio)</div>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Connect Jira to unlock issue search, creation, and automations inside OpenPoke.
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${jiraConnected
+                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                    : 'bg-amber-50 text-amber-700 ring-amber-200'
+                    }`}
+                >
+                  {jiraConnected ? 'Connected' : 'Not connected'}
+                </span>
+              </div>
+
+              {jiraConnected ? (
+                <div className="mt-4 space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Connected account</div>
+                    <div className="mt-1 text-sm font-medium text-gray-900">{jiraDisplayName || jiraEmail || 'Account unavailable'}</div>
+                  </div>
+                  {jiraStatusMessage && (
+                    <p className="text-xs text-gray-500" aria-live="polite">{jiraStatusMessage}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-3 text-sm text-gray-500" aria-live="polite">
+                  {jiraStatusMessage || 'Complete the connection to view your Jira account details here.'}
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleConnectJira}
+                  disabled={connectingJira || isRefreshingJira || isDisconnectingJira}
+                  aria-busy={connectingJira}
+                >
+                  {jiraConnectButtonLabel}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={refreshJiraStatus}
+                  disabled={isRefreshingJira || connectingJira}
+                  aria-busy={isRefreshingJira}
+                >
+                  {jiraRefreshButtonLabel}
+                </button>
+                {jiraConnected && (
+                  <button
+                    type="button"
+                    className="rounded-md border border-transparent bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={handleDisconnectJira}
+                    disabled={isDisconnectingJira || connectingJira}
+                    aria-busy={isDisconnectingJira}
+                  >
+                    {jiraDisconnectButtonLabel}
                   </button>
                 )}
               </div>
