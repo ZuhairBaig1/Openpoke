@@ -35,17 +35,17 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "description": {
                     "type": "string",
                     "description": "Detailed notes. Supports Markdown (auto-converted) or ADF JSON objects.",
-                    "default": null
+                    "default": None
                     },
                 "priority": {
                     "type": "string",
                     "description": "Priority level name (e.g., 'High', 'Medium') or ID.",
-                    "default": null
+                    "default": None
                     },
                 "assignee": {
                     "type": "string",
                     "description": "The Account ID of the user. Takes precedence over assignee_name.",
-                    "default": null
+                    "default": None
                     },
                 "assignee_name": {
                     "type": "string",
@@ -55,56 +55,56 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "parent": {
                     "type": "string",
                     "description": "Parent issue key or ID. REQUIRED if creating a sub-task.",
-                    "default": null
+                    "default": None
                     },
                 "labels": {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "List of tags to categorize the issue.",
-                    "default": null
+                    "default": None
                     },
                 "due_date": {
                     "type": "string",
                     "description": "Expected resolution date in YYYY-MM-DD format.",
-                    "default": null
+                    "default": None
                     },
                 "sprint_id": {
                     "type": "integer",
                     "description": "The numeric ID of the sprint to add this issue to.",
-                    "default": null
+                    "default": None
                     },
                 "components": {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "List of existing component IDs.",
-                    "default": null
+                    "default": None
                     },
                 "fix_versions": {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "List of version IDs where the fix is planned.",
-                    "default": null
+                    "default": None
                     },
                 "versions": {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "List of affected version IDs.",
-                    "default": null
+                    "default": None
                     },
                 "environment": {
                     "type": "string",
                     "description": "Environment details (e.g., 'Production', 'Staging'). Supports Markdown.",
-                    "default": null
+                    "default": None
                     },
                 "reporter": {
                     "type": "string",
                     "description": "Account ID of the reporter. Defaults to the API user.",
-                    "default": null
+                    "default": None
                     },
                 "additional_properties": {
                     "type": "string",
                     "description": "JSON string for custom fields. Example: '{\"customfield_10104\": 5}'.",
-                    "default": null
+                    "default": None
                     }
                 },
             "required": ["project_key", "summary"],
@@ -132,12 +132,12 @@ _SCHEMAS: List[Dict[str, Any]] = [
                     "type": "string",
                     "description": "Restrict who can see the comment. Valid values: 'group' or 'role'. If used, 'visibility_value' must also be provided.",
                     "enum": ["group", "role"],
-                    "default": null
+                    "default": None
                     },
                 "visibility_value": {
                     "type": "string",
                     "description": "The specific group or role name allowed to view the comment (e.g., 'Administrator', 'Developers').",
-                    "default": null
+                    "default": None
                     }
                 },
             "required": ["issue_id_or_key", "comment"],
@@ -174,17 +174,17 @@ _SCHEMAS: List[Dict[str, Any]] = [
                     "type": "string",
                     "description": "Restrict visibility by 'group' or 'role'. If set, visibility_value is required.",
                     "enum": ["group", "role"],
-                    "default": null
+                    "default": None
                     },
                 "visibility_value": {
                     "type": "string",
                     "description": "The specific name of the group or role allowed to view the comment.",
-                    "default": null
+                    "default": None
                     },
                 "additional_properties": {
                     "type": "string",
                     "description": "A JSON string of custom key-value pairs to store metadata against the comment. Example: '{\"internal\": true}'.",
-                    "default": null
+                    "default": None
                     }
                 },
             "required": ["issue_id_or_key", "comment_id", "comment_text"],
@@ -258,32 +258,32 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "comment": {
                     "type": "string",
                     "description": "Optional Markdown-supported comment explaining the status change.",
-                    "default": null
+                    "default": None
                     },
                 "assignee": {
                     "type": "string",
                     "description": "Optional: Account ID of the user to assign the issue to during this transition.",
-                    "default": null
+                    "default": None
                     },
                 "assignee_name": {
                     "type": "string",
                     "description": "Optional: Email or display name of the assignee. Used only if 'assignee' (ID) is not provided.",
-                    "default": null
+                    "default": None
                     },
                 "resolution": {
                     "type": "string",
                     "description": "Optional resolution (e.g., 'Fixed', 'Done'). Use only if the transition screen allows it.",
-                    "default": null
+                    "default": None
                     },
                 "duedate": {
                     "type": "string",
                     "description": "Optional due date in YYYY-MM-DD format.",
-                    "default": null
+                    "default": None
                     },
                 "additional_fields": {
                     "type": "object",
                     "description": "Dictionary of extra fields/custom fields to update after the transition. Example: {'customfield_10001': 'High Priority'}.",
-                    "default": null
+                    "default": None
                     }
                 },
             "required": ["issue_id_or_key", "transition_id_or_name"],
@@ -306,12 +306,12 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "expand": {
                     "type": "string",
                     "description": "Optional expansion properties. Use 'transitions.fields' to see the specific input fields required for each transition screen.",
-                    "default": null
+                    "default": None
                     },
                 "transition_id": {
                     "type": "string",
                     "description": "If provided, only returns details for this specific transition ID.",
-                    "default": null
+                    "default": None
                     },
                 "include_unavailable_transitions": {
                     "type": "boolean",
@@ -414,12 +414,12 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "expand": {
                     "type": "string",
                     "description": "Optional comma-separated list of fields to include in the response. Available options: description, issueTypes, lead, projectKeys, issueTypeHierarchy.",
-                    "default": null
+                    "default": None
                     },
                 "properties": {
                     "type": "string",
                     "description": "Optional comma-separated list of project property keys to include in the response (up to 100 keys).",
-                    "default": null
+                    "default": None
                     }
                 },
             "required": ["project_id_or_key"],
@@ -438,12 +438,12 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "query": {
                     "type": "string",
                     "description": "A search string matched against display names or email addresses (e.g., 'John Doe' or 'john@company.com'). Required if account_id is not provided.",
-                    "default": null
+                    "default": None
                     },
                 "account_id": {
                     "type": "string",
                     "description": "A specific Jira account ID to retrieve details for. Required if query is not provided.",
-                    "default": null
+                    "default": None
                     },
                 "active": {
                     "type": "boolean",
