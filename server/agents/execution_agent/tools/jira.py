@@ -50,7 +50,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 "assignee_name": {
                     "type": "string",
                     "description": "Email or display name of the user to assign the issue to.",
-                    "default": null
+                    "default": None
                     },
                 "parent": {
                     "type": "string",
