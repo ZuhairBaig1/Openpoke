@@ -9,9 +9,20 @@ from pydantic import BaseModel, Field
 
 
 def _load_env_file() -> None:
-    """Load .env from root directory if present."""
-    env_path = Path(__file__).parent.parent / ".env"
-    if not env_path.is_file():
+    # Search for .env in current and parent directories
+    search_path = Path(__file__).resolve().parent
+    env_path = None
+    
+    for _ in range(4): # Check current + 3 parents
+        candidate = search_path / ".env"
+        if candidate.is_file():
+            env_path = candidate
+            print(f"DEBUG: Found .env at {env_path}")
+            break
+        search_path = search_path.parent
+        
+    if not env_path:
+        print("DEBUG: .env file NOT found in hierarchy")
         return
     try:
         for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -20,9 +31,6 @@ def _load_env_file() -> None:
                 key, value = stripped.split("=", 1)
                 key, value = key.strip(), value.strip().strip("'\"")
                 if key and value and key not in os.environ:
-                    # Debug print
-                    if "COMPOSIO" in key:
-                        print(f"[DEBUG_ENV] Loading {key} = {value[:4]}...")
                     os.environ[key] = value
     except Exception:
         pass
