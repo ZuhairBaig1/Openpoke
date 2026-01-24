@@ -73,6 +73,7 @@ class Settings(BaseModel):
     openrouter_api_key: Optional[str] = Field(default=os.getenv("OPENROUTER_API_KEY"))
     composio_gmail_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_GMAIL_AUTH_CONFIG_ID"))
     composio_jira_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID"))
+    composio_jira_subdomain: Optional[str] = Field(default=os.getenv("COMPOSIO_JIRA_SUBDOMAIN"))
     composio_api_key: Optional[str] = Field(default=os.getenv("COMPOSIO_API_KEY"))
 
     # HTTP behaviour

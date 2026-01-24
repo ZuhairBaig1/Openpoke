@@ -134,6 +134,7 @@ export default function SettingsModal({
   const [jiraEmail, setJiraEmail] = useState('');
   const [jiraConnId, setJiraConnId] = useState('');
   const [jiraProfile, setJiraProfile] = useState<Record<string, unknown> | null>(null);
+  const [jiraSubdomain, setJiraSubdomain] = useState('');
 
   const readStoredUserId = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -206,10 +207,14 @@ export default function SettingsModal({
       const savedConnId = localStorage.getItem('jira_connection_request_id') || '';
       const savedDisplayName = localStorage.getItem('jira_display_name') || '';
       const savedEmail = localStorage.getItem('jira_email') || '';
+      const savedSubdomain = localStorage.getItem('jira_subdomain') || '';
+
       setJiraConnected(savedConnected);
       setJiraConnId(savedConnId);
       setJiraDisplayName(savedDisplayName);
       setJiraEmail(savedEmail);
+      setJiraSubdomain(savedSubdomain);
+
       if (savedConnected && (savedDisplayName || savedEmail)) {
         setJiraStatusMessage(`Connected as ${savedDisplayName || savedEmail}`);
       }
@@ -401,7 +406,7 @@ export default function SettingsModal({
       const resp = await fetch('/api/jira/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, subdomain: jiraSubdomain }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.ok) {
@@ -415,6 +420,7 @@ export default function SettingsModal({
         setJiraConnId(connId);
         try {
           localStorage.setItem('jira_connection_request_id', connId);
+          if (jiraSubdomain) localStorage.setItem('jira_subdomain', jiraSubdomain);
         } catch { }
       }
       setJiraConnected(false);
@@ -688,6 +694,21 @@ export default function SettingsModal({
                   <p className="mt-1 text-sm text-gray-600">
                     Connect Jira to unlock issue search, creation, and automations inside OpenPoke.
                   </p>
+                  {!jiraConnected && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-700">Atlassian Subdomain</label>
+                      <div className="mt-1 flex items-center rounded-md bg-white px-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
+                        <input
+                          type="text"
+                          className="block min-w-0 grow py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                          placeholder="your-company"
+                          value={jiraSubdomain}
+                          onChange={(e) => setJiraSubdomain(e.target.value)}
+                        />
+                        <div className="shrink-0 select-none text-base text-gray-500 sm:text-sm/6">.atlassian.net</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${jiraConnected
@@ -720,7 +741,7 @@ export default function SettingsModal({
                   type="button"
                   className="btn"
                   onClick={handleConnectJira}
-                  disabled={connectingJira || isRefreshingJira || isDisconnectingJira}
+                  disabled={connectingJira || isRefreshingJira || isDisconnectingJira || (!jiraConnected && !jiraSubdomain)}
                   aria-busy={connectingJira}
                 >
                   {jiraConnectButtonLabel}

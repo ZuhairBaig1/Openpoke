@@ -7,6 +7,7 @@ export async function POST(req: Request) {
     } catch { }
     const userId = body?.userId || '';
     const authConfigId = body?.authConfigId || '';
+    const subdomain = body?.subdomain || '';
 
     const serverBase = process.env.PY_SERVER_URL || 'http://localhost:8001';
     const url = `${serverBase.replace(/\/$/, '')}/api/v1/jira/connect`;
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
         const resp = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ user_id: userId, auth_config_id: authConfigId }),
+            body: JSON.stringify({ user_id: userId, auth_config_id: authConfigId, subdomain }),
         });
         const data = await resp.json().catch(() => ({}));
         return new Response(JSON.stringify(data), {

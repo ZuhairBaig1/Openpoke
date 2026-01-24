@@ -126,9 +126,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     auth_config_id = (
     (payload.auth_config_id or "").strip()
     or (settings.composio_jira_auth_config_id or "").strip()
-    or (get_settings().composio_jira_auth_config_id or "").strip()
     or (os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") or "").strip()
-    or "ac_-6zMer9S9aWj"
+    #or "ac_-6zMer9S9aWj"
 )
 
     if not auth_config_id:
@@ -137,9 +136,14 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     user_id = payload.user_id or f"web-jira-{os.getpid()}"
     _set_active_jira_user_id(user_id)
     _clear_cached_profile(user_id)
+
+    subdomain = payload.subdomain 
+    or settings.composio_jira_subdomain  
+    or os.getenv("COMPOSIO_JIRA_SUBDOMAIN")
+
     try:
         client = _get_composio_client(settings)
-        req = client.connected_accounts.initiate(user_id=user_id, auth_config_id=auth_config_id)
+        req = client.connected_accounts.initiate(user_id=user_id, auth_config_id=auth_config_id, subdomain=subdomain)
         return JSONResponse({
             "ok": True,
             "redirect_url": getattr(req, "redirect_url", None) or getattr(req, "redirectUrl", None),
@@ -148,7 +152,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         })
     except Exception as exc:
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
-        return error_response("Failed to initiate Jira connect", status_code=500, detail=str(exc))
+        return error_response(f"Failed to initiate Jira connect: {str(exc)}", status_code=500, detail=str(exc))
 
 def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
