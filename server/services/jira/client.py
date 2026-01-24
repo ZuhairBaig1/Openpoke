@@ -149,9 +149,9 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         req = client.connected_accounts.initiate(
             user_id=user_id, 
             auth_config_id=auth_config_id, 
-            connection_data={
+            config={
                 "subdomain": subdomain if subdomain else None,
-                "authScheme": "OAUTH2"
+                "auth_scheme": "OAUTH2"
                 } 
         )
         return JSONResponse({
