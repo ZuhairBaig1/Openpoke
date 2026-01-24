@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from ...config import Settings, get_settings
 from ...logging_config import logger
 from ...models import JiraConnectPayload, JiraDisconnectPayload, JiraStatusPayload
-from ...utils import error_response
+from ...utils import error_response,get_settings
 
 _CLIENT_LOCK = threading.Lock()
 _CLIENT: Optional[Any] = None
@@ -124,11 +124,12 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
 
 def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = (
-        payload.auth_config_id 
-        or settings.composio_jira_auth_config_id 
-        or os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") 
-        or ""
-    )
+    (payload.auth_config_id or "").strip()
+    or (settings.composio_jira_auth_config_id or "").strip()
+    or (get_settings().composio_jira_auth_config_id or "").strip()
+    or (os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") or "").strip()
+)
+
     if not auth_config_id:
         return error_response("Missing auth_config_id for Jira.", status_code=400)
 

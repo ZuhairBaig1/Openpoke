@@ -205,7 +205,7 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
 
 # Start Gmail OAuth connection process and return redirect URL
 def initiate_connect(payload: GmailConnectPayload, settings: Settings) -> JSONResponse:
-    auth_config_id = payload.auth_config_id or settings.composio_gmail_auth_config_id or ""
+    auth_config_id = payload.auth_config_id or settings.composio_gmail_auth_config_id or get_settings().composio_gmail_auth_config_id or os.getenv("COMPOSIO_GMAIL_AUTH_CONFIG_ID") or ""
     if not auth_config_id:
         return error_response(
             "Missing auth_config_id. Set COMPOSIO_GMAIL_AUTH_CONFIG_ID or pass auth_config_id.",
