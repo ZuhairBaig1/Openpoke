@@ -128,6 +128,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     or (settings.composio_jira_auth_config_id or "").strip()
     or (get_settings().composio_jira_auth_config_id or "").strip()
     or (os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") or "").strip()
+    or "ac_-6zMer9S9aWj"
 )
 
     if not auth_config_id:
