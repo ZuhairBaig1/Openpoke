@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from ...config import Settings, get_settings
 from ...logging_config import logger
 from ...models import JiraConnectPayload, JiraDisconnectPayload, JiraStatusPayload
-from ...utils import error_response,get_settings
+from ...utils import error_response
 
 _CLIENT_LOCK = threading.Lock()
 _CLIENT: Optional[Any] = None
