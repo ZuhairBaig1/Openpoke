@@ -145,10 +145,11 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     )
     try:
         client = _get_composio_client(settings)
+        # Try passing subdomain via 'config' param (based on docs/search)
         req = client.connected_accounts.initiate(
             user_id=user_id, 
             auth_config_id=auth_config_id, 
-            entity_fields={"subdomain": subdomain} if subdomain else None
+            config={"subdomain": subdomain} if subdomain else None
         )
         return JSONResponse({
             "ok": True,
