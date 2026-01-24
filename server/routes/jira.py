@@ -26,3 +26,12 @@ async def jira_status(payload: JiraStatusPayload) -> JSONResponse:
 # Disconnect Jira account and clear cached profile data
 async def jira_disconnect(payload: JiraDisconnectPayload) -> JSONResponse:
     return jira_disconnect_account(payload)
+
+@router.get("/debug_env")
+async def debug_env(settings: Settings = Depends(get_settings)):
+    import os
+    return {
+        "env_var": os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID"),
+        "settings_var": settings.composio_jira_auth_config_id,
+        "env_keys_with_composio": [k for k in os.environ.keys() if "COMPOSIO" in k]
+    }
