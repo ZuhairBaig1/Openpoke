@@ -32,7 +32,8 @@ def _load_env_file() -> None:
                 key, value = key.strip(), value.strip().strip("'\"")
                 if key and value and key not in os.environ:
                     os.environ[key] = value
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error processing .env: {e}")
         pass
 
 
