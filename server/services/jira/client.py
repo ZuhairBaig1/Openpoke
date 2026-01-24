@@ -137,10 +137,11 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     _set_active_jira_user_id(user_id)
     _clear_cached_profile(user_id)
 
-    subdomain = payload.subdomain 
-    or settings.composio_jira_subdomain  
-    or os.getenv("COMPOSIO_JIRA_SUBDOMAIN")
-
+    subdomain = (
+        (payload.subdomain or "").strip()
+        or (settings.composio_jira_subdomain or "").strip()
+        or (os.getenv("COMPOSIO_JIRA_SUBDOMAIN") or "").strip()
+    )
     try:
         client = _get_composio_client(settings)
         req = client.connected_accounts.initiate(user_id=user_id, auth_config_id=auth_config_id, subdomain=subdomain)
