@@ -127,10 +127,11 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     (payload.auth_config_id or "").strip()
     or (settings.composio_jira_auth_config_id or "").strip()
     or (os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") or "").strip()
+    )
 
     logger.info(f"Jira auth_config_id: {auth_config_id}")
     
-)
+
 
     if not auth_config_id:
         return error_response("Missing auth_config_id for Jira.", status_code=400)
