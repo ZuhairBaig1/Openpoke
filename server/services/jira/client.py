@@ -157,12 +157,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         # Try passing subdomain via 'config' param (based on docs/search)
         req = client.connected_accounts.initiate(
             user_id=user_id, 
-            auth_config_id=auth_config_id, 
-            properties={
-                "subdomain": subdomain,
-                "Your Subdomain": subdomain,
-                "authScheme": "OAUTH2"
-                } 
+            auth_config_id=auth_config_id  
         )
         return JSONResponse({
             "ok": True,
