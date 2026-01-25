@@ -144,8 +144,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
 
     subdomain = (
         (payload.subdomain or "").strip()
-        or (settings.composio_jira_subdomain or "").strip()
-        or (os.getenv("COMPOSIO_JIRA_SUBDOMAIN") or "").strip()
+        or (settings.jira_subdomain or "").strip()
+        or (os.getenv("JIRA_SUBDOMAIN") or "").strip()
 
     )
 
@@ -158,9 +158,6 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         req = client.connected_accounts.initiate(
             user_id=user_id, 
             auth_config_id=auth_config_id,
-            data={
-                "subdomain": subdomain
-            }
         )
         return JSONResponse({
             "ok": True,
