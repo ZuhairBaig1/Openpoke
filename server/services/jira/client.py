@@ -144,9 +144,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
 
     subdomain = (
         (payload.subdomain or "").strip()
-        or (settings.jira_subdomain or "").strip()
-        or (os.getenv("JIRA_SUBDOMAIN") or "").strip()
-
+        or (settings.composio_jira_subdomain or "").strip()
+        or (os.getenv("COMPOSIO_JIRA_SUBDOMAIN") or "").strip()
     )
 
     logger.info(f"Jira subdomain: {subdomain}")
@@ -154,14 +153,20 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
 
     try:
         client = _get_composio_client(settings)
-        # Try passing subdomain via 'config' param (based on docs/search)
+        # Corrected structure for Composio Jira integration:
+        # 1. Use 'authScheme' (camelCase) at the root of config.
+        # 2. Wrap parameters in 'val' dictionary.
+        # 3. Use 'subdomain' (lowercase) for the Atlassian subdomain.
         req = client.connected_accounts.initiate(
             user_id=user_id, 
             auth_config_id=auth_config_id,
             config={
-                "subdomain": subdomain,
-                "auth_scheme": "OAUTH2"
+                "authScheme": "OAUTH2",
+                "val": {
+                    "status": "INITIALIZING",
+                    "subdomain": subdomain,
                 }
+            }
         )
         return JSONResponse({
             "ok": True,
