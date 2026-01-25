@@ -147,9 +147,11 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         or (settings.composio_jira_subdomain or "").strip()
         or (os.getenv("COMPOSIO_JIRA_SUBDOMAIN") or "").strip()
 
+    )
+
     logger.info(f"Jira subdomain: {subdomain}")
         
-    )
+
     try:
         client = _get_composio_client(settings)
         # Try passing subdomain via 'config' param (based on docs/search)
