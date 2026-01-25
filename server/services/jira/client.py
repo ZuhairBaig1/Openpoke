@@ -127,7 +127,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     (payload.auth_config_id or "").strip()
     or (settings.composio_jira_auth_config_id or "").strip()
     or (os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") or "").strip()
-    or "ac_-6zMer9S9aWj"
+    
 )
 
     if not auth_config_id:
@@ -141,7 +141,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         (payload.subdomain or "").strip()
         or (settings.composio_jira_subdomain or "").strip()
         or (os.getenv("COMPOSIO_JIRA_SUBDOMAIN") or "").strip()
-        or "zuhairmdbaig"
+        
     )
     try:
         client = _get_composio_client(settings)
