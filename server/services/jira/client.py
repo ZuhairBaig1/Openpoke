@@ -127,6 +127,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     (payload.auth_config_id or "").strip()
     or (settings.composio_jira_auth_config_id or "").strip()
     or (os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID") or "").strip()
+
+    logger.info(f"Jira auth_config_id: {auth_config_id}")
     
 )
 
@@ -137,10 +139,14 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     _set_active_jira_user_id(user_id)
     _clear_cached_profile(user_id)
 
+    logger.info(f"Jira user_id: {user_id}")
+
     subdomain = (
         (payload.subdomain or "").strip()
         or (settings.composio_jira_subdomain or "").strip()
         or (os.getenv("COMPOSIO_JIRA_SUBDOMAIN") or "").strip()
+
+    logger.info(f"Jira subdomain: {subdomain}")
         
     )
     try:
