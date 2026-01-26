@@ -160,6 +160,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         )
         
         data = getattr(existing, "data", [])
+
+        logger.info(f"Jira existing accounts: {data}")
         
         
         if len(data) > 0:
@@ -188,6 +190,20 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
                 }
             }
         )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "ok": True,
+                "already_connected": False,
+                "user_id": user_id,
+                "connection_request_id": getattr(req, "id", None),
+                "redirect_url": getattr(req, "redirect_url", None),
+                "status": "INITIALIZING"
+                }
+            )
+
+
 
     except Exception as exc:
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
