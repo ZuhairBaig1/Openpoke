@@ -158,27 +158,28 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
             user_ids=[user_id],
             toolkit_slugs=["JIRA"]
         )
-
-        data = getattr(existing, "data", None) or []
-
-        if data:
+        
+        data = getattr(existing, "data", [])
+        
+        
+        if len(data) > 0:
             account = data[0]
             status_val = getattr(account, "status", "UNKNOWN")
             
-            logger.info(f"Connection attempt blocked: User {user_id} already has a {status_val} account.")
+            logger.info(f"User {user_id} already has a Jira account: {status_val}")
             
             return JSONResponse({
                 "ok": True,
-                "already_connected": True,
+                "already_connected": True, 
                 "status": status_val,
                 "connection_id": getattr(account, "id", None),
                 "user_id": user_id,
-                "message": "User already has a Jira account linked."
             })
 
         req = client.connected_accounts.initiate(
             user_id=user_id,
             auth_config_id=auth_config_id,
+            allow_multiple=True,
             config={
                 "authScheme": "OAUTH2",
                 "val": {
