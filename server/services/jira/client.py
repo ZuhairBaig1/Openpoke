@@ -152,13 +152,25 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         
 
     try:
-        client = _get_composio_client(settings)
-        # Corrected structure for Composio Jira integration:
-        # 1. Use 'authScheme' (camelCase) at the root of config.
-        # 2. Wrap parameters in 'val' dictionary.
-        # 3. Use 'subdomain' (lowercase) for the Atlassian subdomain.
+        existing = client.connected_accounts.list(
+            user_ids=[user_id],
+            auth_config_ids=[auth_config_id],
+            toolkit_slugs=["JIRA"],
+            statuses=["ACTIVE", "CONNECTED", "SUCCESSFUL"]
+        )
+
+        data = getattr(existing, "data", None) or []
+
+        if data:
+            account = data[0]
+            return JSONResponse({
+                "ok": True,
+                "already_connected": True,
+                "connection_id": getattr(account, "id", None),
+                "user_id": user_id,
+            })
         req = client.connected_accounts.initiate(
-            user_id=user_id, 
+            user_id=user_id,
             auth_config_id=auth_config_id,
             config={
                 "authScheme": "OAUTH2",
@@ -168,12 +180,14 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
                 }
             }
         )
+
         return JSONResponse({
             "ok": True,
             "redirect_url": getattr(req, "redirect_url", None) or getattr(req, "redirectUrl", None),
             "connection_request_id": getattr(req, "id", None),
             "user_id": user_id,
         })
+
     except Exception as exc:
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
         return error_response(f"Failed to initiate Jira connect: {str(exc)}", status_code=500, detail=str(exc))
