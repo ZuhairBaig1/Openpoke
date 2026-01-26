@@ -157,7 +157,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
             user_ids=[user_id],
             auth_config_ids=[auth_config_id],
             toolkit_slugs=["JIRA"],
-            statuses=["ACTIVE", "CONNECTED", "SUCCESSFUL"]
+            statuses=["ACTIVE"]
         )
 
         data = getattr(existing, "data", None) or []
