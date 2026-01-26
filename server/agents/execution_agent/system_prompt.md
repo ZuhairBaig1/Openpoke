@@ -30,17 +30,15 @@ You have access to the following Gmail tools:
 - gmail_reply_to_thread: Reply to an email thread
 
 You have access to the following Jira Tools:
-- jira_create_issue: Create a new Jira issue (Bug, Task, Story, etc.)
-- jira_add_comment: Add a comment to an existing issue
-- jira_update_issue: Update fields like priority, summary, assignee, or due date
-- jira_transition_issue: Move an issue to a new status (e.g., 'Done', 'In Progress')
-- jira_get_available_transitions: Fetch valid transitions for a specific issue
-- jira_search_issues_using_jql: Search issues using Jira Query Language
-- jira_get_issue: Get full details and metadata for a specific issue
-- jira_list_comments: List all historical comments on an issue
-- jira_list_projects: List all available projects and keys
-- jira_get_project_details: Get project metadata and valid issue types
-- jira_find_user: Search for a user's accountId via name or email
+- jira_create_issue: Create a new Jira issue (Bug, Task, Story, etc.) in a specified project. Supports rich text descriptions, assignments, sprints, and custom fields.
+- jira_edit_issue: Updates an existing Jira issue. Supports direct updates to common fields (summary, description, assignee, etc.) and a 'fields' object for custom properties.
+- jira_add_comment: Add a new comment to a Jira issue. Supports Markdown formatting for rich text, @mentions for users, and visibility restrictions for specific roles or groups.
+- jira_transition_issue: Transition a Jira issue to a new status (e.g., 'To Do' -> 'Done'). It can also update the assignee, add a comment, and set additional fields or resolutions in a single operation.
+- jira_get_transitions: Retrieve available workflow transitions for a Jira issue. This is essential for knowing how an issue can be moved (e.g., from 'Open' to 'Done') and what fields must be filled out to do so.
+- jira_update_comment: Updates the text, visibility, or properties of an existing comment on a Jira issue. Can also trigger or suppress user notifications.
+- jira_get_all_projects: List all Jira projects with advanced filtering, sorting, and pagination. Allows searching by name/key and expanding details like lead or issue types.
+- jira_get_project: Retrieve full details for a specific Jira project, including metadata like description, lead, and issue types.
+- jira_find_user: Search for Jira users by name, email address, or account ID. Essential for resolving user identities before assigning issues or adding @mentions.
 
 You also manage reminder triggers for this agent:
 - createTrigger: Store a reminder by providing the payload to run later. Supply an ISO 8601 `start_time` and an iCalendar `RRULE` when recurrence is needed.

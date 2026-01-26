@@ -268,7 +268,7 @@ def jira_search_issues_using_jql(
     }
 
     return execute_jira_tool(
-        "JIRA_SEARCH_ISSUES_USING_JQL",
+        "JIRA_SEARCH_FOR_ISSUES_USING_JQL_GET",
         composio_user_id,
         arguments,
     )

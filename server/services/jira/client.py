@@ -131,8 +131,6 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
 
     logger.info(f"Jira auth_config_id: {auth_config_id}")
     
-
-
     if not auth_config_id:
         return error_response("Missing auth_config_id for Jira.", status_code=400)
 
@@ -152,32 +150,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         
 
     try:
+
         client = _get_composio_client(settings)
-        
-        existing = client.connected_accounts.list(
-            user_ids=[user_id],
-            toolkit_slugs=["JIRA"]
-        )
-        
-        data = getattr(existing, "data", [])
-
-        logger.info(f"Jira existing accounts: {data}")
-        
-        
-        if len(data) > 0:
-            account = data[0]
-            status_val = getattr(account, "status", "UNKNOWN")
-            
-            logger.info(f"User {user_id} already has a Jira account: {status_val}")
-            
-            return JSONResponse({
-                "ok": True,
-                "already_connected": True, 
-                "status": status_val,
-                "connection_id": getattr(account, "id", None),
-                "user_id": user_id,
-            })
-
         req = client.connected_accounts.initiate(
             user_id=user_id,
             auth_config_id=auth_config_id,
@@ -206,7 +180,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
 
     except Exception as exc:
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
-        return error_response(f"Failed to initiate Jira connect: {str(exc)}", status_code=500, detail=str(exc))
+        return error_response(f"Failed to initiate Jira connect", status_code=500, detail=str(exc))
 
 def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
