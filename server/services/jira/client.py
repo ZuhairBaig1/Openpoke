@@ -156,7 +156,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         existing = client.connected_accounts.list(
             user_ids=[user_id],
             toolkit_slugs=["JIRA"],
-            statuses=["ACTIVE"]
+            statuses=["ACTIVE","INITIATED", "INITIALIZING"]
         )
 
         data = getattr(existing, "data", None) or []
