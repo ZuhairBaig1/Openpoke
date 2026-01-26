@@ -155,7 +155,6 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         client = _get_composio_client(settings)
         existing = client.connected_accounts.list(
             user_ids=[user_id],
-            auth_config_ids=[auth_config_id],
             toolkit_slugs=["JIRA"],
             statuses=["ACTIVE"]
         )
