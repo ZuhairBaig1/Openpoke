@@ -153,43 +153,41 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
 
     try:
         try:
-        client = _get_composio_client(settings)
-        
-        # 1. Look for ANY existing account regardless of status
-        # Removing specific statuses ensures we catch the "pending" ones causing your error
-        existing = client.connected_accounts.list(
-            user_ids=[user_id],
-            toolkit_slugs=["JIRA"]
-        )
-
-        data = getattr(existing, "data", None) or []
-
-        if data:
-            account = data[0]
-            status_val = getattr(account, "status", "UNKNOWN")
+            client = _get_composio_client(settings)
             
-            logger.info(f"Connection attempt blocked: User {user_id} already has a {status_val} account.")
-            
-            return JSONResponse({
-                "ok": True,
-                "already_connected": True,
-                "status": status_val,
-                "connection_id": getattr(account, "id", None),
-                "user_id": user_id,
-                "message": "User already has a Jira account linked."
-            })
+            existing = client.connected_accounts.list(
+                user_ids=[user_id],
+                toolkit_slugs=["JIRA"]
+            )
 
-        req = client.connected_accounts.initiate(
-            user_id=user_id,
-            auth_config_id=auth_config_id,
-            config={
-                "authScheme": "OAUTH2",
-                "val": {
-                    "status": "INITIALIZING",
-                    "subdomain": subdomain,
+            data = getattr(existing, "data", None) or []
+
+            if data:
+                account = data[0]
+                status_val = getattr(account, "status", "UNKNOWN")
+                
+                logger.info(f"Connection attempt blocked: User {user_id} already has a {status_val} account.")
+                
+                return JSONResponse({
+                    "ok": True,
+                    "already_connected": True,
+                    "status": status_val,
+                    "connection_id": getattr(account, "id", None),
+                    "user_id": user_id,
+                    "message": "User already has a Jira account linked."
+                })
+
+            req = client.connected_accounts.initiate(
+                user_id=user_id,
+                auth_config_id=auth_config_id,
+                config={
+                    "authScheme": "OAUTH2",
+                    "val": {
+                        "status": "INITIALIZING",
+                        "subdomain": subdomain,
+                    }
                 }
-            }
-        )
+            )
 
     except Exception as exc:
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
