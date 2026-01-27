@@ -121,6 +121,7 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
         profile = result.get("data") or result.get("profile") or result
         if isinstance(profile, dict):
             _cache_profile(sanitized, profile)
+            logger.info(f"JIRA_GET_CURRENT_USER success, user_id:- {sanitized}", extra={"user_id": sanitized, "profile": profile})
             return profile
     except Exception as exc:
         logger.warning(f"JIRA_GET_CURRENT_USER failed, error:- {str(exc)}", extra={"user_id": sanitized, "error": str(exc)})
