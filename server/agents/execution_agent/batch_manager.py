@@ -58,18 +58,18 @@ class ExecutionBatchManager:
         batch_id = await self._register_pending_execution(agent_name, instructions, request_id)
 
         try:
-            logger.info(f"[{agent_name}] Execution started, in batch_manager rn")
+            logger.info(f"[{agent_name}] Execution started, in execute_agent of batch_manager right now, batch_id: {batch_id}, instructions: {instructions}")
             runtime = ExecutionAgentRuntime(agent_name=agent_name)
-            logger.info("runtime.execute called")
+            logger.info("runtime.execute called, in execute_agent of batch_manager right now, passing instructions")
             result = await asyncio.wait_for(
                 runtime.execute(instructions),
                 timeout=self.timeout_seconds,
             )
-            logger.info("runtime.execute complete, in batch_manager rn")
+            logger.info("runtime.execute complete, in execute_agent of batch_manager right now")
             status = "SUCCESS" if result.success else "FAILED"
-            logger.info(f"[{agent_name}] Execution finished: {status}")
+            logger.info(f"[{agent_name}] Execution finished: {status}, in execute_agent of batch_manager right now, result: {result if result else 'None'}")
         except asyncio.TimeoutError:
-            logger.error(f"[{agent_name}] Execution timed out after {self.timeout_seconds}s")
+            logger.error(f"[{agent_name}] Execution timed out after {self.timeout_seconds}s, in execute_agent of batch_manager right now")
             result = ExecutionResult(
                 agent_name=agent_name,
                 success=False,
@@ -77,7 +77,7 @@ class ExecutionBatchManager:
                 error="Timeout",
             )
         except Exception as exc:  # pragma: no cover - defensive
-            logger.exception(f"[{agent_name}] Execution failed unexpectedly")
+            logger.exception(f"[{agent_name}] Execution failed unexpectedly, in execute_agent of batch_manager right now")
             result = ExecutionResult(
                 agent_name=agent_name,
                 success=False,

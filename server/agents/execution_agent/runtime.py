@@ -42,40 +42,42 @@ class ExecutionAgentRuntime:
     # Main execution loop for running agent with LLM calls and tool execution
     async def execute(self, instructions: str) -> ExecutionResult:
         """Execute the agent with given instructions."""
-        logger.info("Inside execute in execution runtime, in execution runtime rn")
+        logger.info("Inside execute in execution runtime, in execution runtime right now")
         try:
             # Build system prompt with history
-            logger.info("Inside try block, just before building system_prompt, in execution runtime rn")
+            logger.info("Inside try block, just before building system_prompt, in execution runtime right now")
             system_prompt = self.agent.build_system_prompt_with_history()
-            logger.info("Built system_prompt, in execution runtime rn")
+            logger.info("Built system_prompt, in execution runtime right now")
 
             # Start conversation with the instruction
             messages = [{"role": "user", "content": instructions}]
-            logger.info("Built user_message, in execution runtime rn")
+            logger.info("Built user_message, in execution runtime right now")
             tools_executed: List[str] = []
             final_response: Optional[str] = None
 
-            logger.info("Just before all tool iterations, in execution agent rn")
+            logger.info("Just before all tool iterations, in execution agent runtime right now")
             for iteration in range(self.MAX_TOOL_ITERATIONS):
                 logger.info(
                     f"[{self.agent.name}] Requesting plan (iteration {iteration + 1})"
                 )
-                logger.info("_make_llm_call called in execution agent, in execution runtime rn")
+                logger.info("_make_llm_call called, in execution agent runtime right now")
                 response = await self._make_llm_call(system_prompt, messages, with_tools=True)
                 assistant_message = response.get("choices", [{}])[0].get("message", {})
+                logger.info(f"Got assistant_message, assistant message: {assistant_message}, in execution agent runtime right now")
 
                 if not assistant_message:
-                    raise RuntimeError("LLM response did not include an assistant message")
+                    raise RuntimeError("LLM response did not include an assistant message, in execution agent runtime right now")
 
                 raw_tool_calls = assistant_message.get("tool_calls", []) or []
                 parsed_tool_calls = self._extract_tool_calls(raw_tool_calls)
+                logger.info("Got parsed_tool_calls, in execution agent runtime right now")
 
                 assistant_entry: Dict[str, Any] = {
                     "role": "assistant",
                     "content": assistant_message.get("content", "") or "",
                 }
                 if raw_tool_calls:
-                    logger.info("tool request made by execution agent, in execution runtime rn")
+                    logger.info(f"tool request made by execution agent, in execution runtime right now, tool requested: {parsed_tool_calls}")
                     assistant_entry["tool_calls"] = raw_tool_calls
                 messages.append(assistant_entry)
 
@@ -85,14 +87,14 @@ class ExecutionAgentRuntime:
 
                 for tool_call in parsed_tool_calls:
                     tool_name = tool_call.get("name", "")
-                    logger.info(f"tool name: {tool_name}, in execution rntime rn")
+                    logger.info(f"tool name: {tool_name}, in execution runtime right now")
                     tool_args = tool_call.get("arguments", {})
-                    logger.info(f"tool args: {tool_args}, in execution runtime rn")
+                    logger.info(f"tool args: {tool_args}, in execution runtime right now")
                     call_id = tool_call.get("id")
-                    logger.info(f"call_id: {call_id}, in execution runtime rn")
+                    logger.info(f"call_id: {call_id}, in execution runtime right now")
 
                     if not tool_name:
-                        logger.warning("Tool call missing name: %s", tool_call)
+                        logger.warning("Tool call missing name: %s", tool_call,)
                         failure = {"error": "Tool call missing name; unable to execute."}
                         tool_message = {
                             "role": "tool",
@@ -105,16 +107,16 @@ class ExecutionAgentRuntime:
                         continue
 
                     tools_executed.append(tool_name)
-                    logger.info(f"[{self.agent.name}] Executing tool: {tool_name}")
+                    logger.info(f"[{self.agent.name}] Executing tool: {tool_name}, in execution runtime right now")
 
                     success, result = await self._execute_tool(tool_name, tool_args)
 
                     if success:
-                        logger.info(f"[{self.agent.name}] Tool {tool_name} completed successfully")
+                        logger.info(f"[{self.agent.name}] Tool {tool_name} completed successfully, in execution runtime right now, result: {result}")
                         record_payload = self._safe_json_dump(result)
                     else:
                         error_detail = result.get("error") if isinstance(result, dict) else str(result)
-                        logger.warning(f"[{self.agent.name}] Tool {tool_name} failed: {error_detail}")
+                        logger.warning(f"[{self.agent.name}] Tool {tool_name} failed: {error_detail}, in execution runtime right now")
                         record_payload = error_detail
 
                     self.agent.record_tool_execution(
@@ -131,10 +133,10 @@ class ExecutionAgentRuntime:
                     messages.append(tool_message)
 
             else:
-                raise RuntimeError("Reached tool iteration limit without final response")
+                raise RuntimeError("Reached tool iteration limit without final response, in execution runtime right now")
 
             if final_response is None:
-                raise RuntimeError("LLM did not return a final response")
+                raise RuntimeError("LLM did not return a final response, in execution runtime right now")
 
             self.agent.record_response(final_response)
 
@@ -146,7 +148,7 @@ class ExecutionAgentRuntime:
             )
 
         except Exception as e:
-            logger.error(f"[{self.agent.name}] Execution failed: {e}")
+            logger.error(f"[{self.agent.name}] Execution failed: {e}, in execution runtime right now")
             error_msg = str(e)
             failure_text = f"Failed to complete task: {error_msg}"
             self.agent.record_response(f"Error: {error_msg}")
@@ -162,7 +164,7 @@ class ExecutionAgentRuntime:
     async def _make_llm_call(self, system_prompt: str, messages: List[Dict], with_tools: bool) -> Dict:
         """Make an LLM call."""
         tools_to_send = self.tool_schemas if with_tools else None
-        logger.info(f"[{self.agent.name}] Calling LLM with model: {self.model}, tools: {len(tools_to_send) if tools_to_send else 0}")
+        logger.info(f"[{self.agent.name}] Calling LLM (request_chat_completion) with model: {self.model}, tools: {len(tools_to_send) if tools_to_send else 0}, in execution runtime right now")
         return await request_chat_completion(
             model=self.model,
             messages=messages,
@@ -235,11 +237,11 @@ class ExecutionAgentRuntime:
         """Execute a tool. Returns (success, result)."""
         tool_func = self.tool_registry.get(tool_name)
         if not tool_func:
-            logger.info(f"Tool dosent exist: {tool_name}, inside execution runtime rn")
+            logger.info(f"Tool dosent exist: {tool_name}, inside _execute_tool inside execution runtime right now")
             return False, {"error": f"Unknown tool: {tool_name}"}
 
         try:
-            logger.info(f"Tool {tool_name} called, passing arguments, in execution runtime rn")
+            logger.info(f"Tool {tool_name} called, passing arguments, inside _execute_tool inside execution runtime right now, arguments {**arguments}")
             result = tool_func(**arguments)
             if inspect.isawaitable(result):
                 result = await result

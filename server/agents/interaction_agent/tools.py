@@ -111,26 +111,29 @@ _EXECUTION_BATCH_MANAGER = ExecutionBatchManager()
 # Create or reuse execution agent and dispatch instructions asynchronously
 def send_message_to_agent(agent_name: str, instructions: str) -> ToolResult:
     """Send instructions to an execution agent."""
+    logger.info(f"send_message_to_agent called, in send_message_to_agent inside interaction_agent/tools.py, arguments passed: {agent_name}, {instructions}")
     roster = get_agent_roster()
     roster.load()
     existing_agents = set(roster.get_agents()) #list converted to set,ie unique only
+    logger.info(f"existing_agents: {existing_agents}, in send_message_to_agent inside interaction_agent/tools.py")
     is_new = agent_name not in existing_agents
-
+    logger.info(f"is_new: {is_new}, in send_message_to_agent inside interaction_agent/tools.py")
     if is_new:
         roster.add_agent(agent_name)
 
     get_execution_agent_logs().record_request(agent_name, instructions)
 
     action = "Created" if is_new else "Reused"
-    logger.info(f"{action} agent: {agent_name}")
+    logger.info(f"{action} agent: {agent_name}, in send_message_to_agent inside interaction_agent/tools.py")
 
     async def _execute_async() -> None:
         try:
+            logger.info(f"About to call _EXECUTION_BATCH_MANAGER.execute_agent, in send_message_to_agent inside interaction_agent/tools.py, arguments passed:- agent name: {agent_name}, instructions: {instructions}")
             result = await _EXECUTION_BATCH_MANAGER.execute_agent(agent_name, instructions)
             status = "SUCCESS" if result.success else "FAILED"
-            logger.info(f"Agent '{agent_name}' completed: {status}")
+            logger.info(f"Agent '{agent_name}' completed: {status}, in send_message_to_agent inside interaction_agent/tools.py")
         except Exception as exc:  # pragma: no cover - defensive
-            logger.error(f"Agent '{agent_name}' failed: {str(exc)}")
+            logger.error(f"Agent '{agent_name}' failed: {str(exc)}, in send_message_to_agent inside interaction_agent/tools.py")
 
     try:
         loop = asyncio.get_running_loop()
@@ -153,6 +156,7 @@ def send_message_to_agent(agent_name: str, instructions: str) -> ToolResult:
 # Send immediate message to user and record in conversation history
 def send_message_to_user(message: str) -> ToolResult:
     """Record a user-visible reply in the conversation log."""
+    logger.info(f"send_message_to_user called, in send_message_to_user inside interaction_agent/tools.py, arguments passed: {message}")
     log = get_conversation_log()
     log.record_reply(message)
 
@@ -171,12 +175,13 @@ def send_draft(
     body: str,
 ) -> ToolResult:
     """Record a draft update in the conversation log for the interaction agent."""
+    logger.info(f"send_draft called, in send_draft inside interaction_agent/tools.py, arguments passed: {to}, {subject}, {body}")
     log = get_conversation_log()
 
     message = f"To: {to}\nSubject: {subject}\n\n{body}"
 
     log.record_reply(message)
-    logger.info(f"Draft recorded for: {to}")
+    logger.info(f"Draft recorded for: {to}, in send_draft inside interaction_agent/tools.py")
 
     return ToolResult(
         success=True,
@@ -192,10 +197,12 @@ def send_draft(
 # Record silent wait state to avoid duplicate responses
 def wait(reason: str) -> ToolResult:
     """Wait silently and add a wait log entry that is not visible to the user."""
+    logger.info(f"wait called, in wait inside interaction_agent/tools.py, arguments passed: {reason}")
     log = get_conversation_log()
     
     # Record a dedicated wait entry so the UI knows to ignore it
     log.record_wait(reason)
+    logger.info(f"Wait recorded for: {reason}, in wait inside interaction_agent/tools.py")
     
 
     return ToolResult(
@@ -217,6 +224,7 @@ def get_tool_schemas():
 # Route tool calls to appropriate handlers with argument validation and error handling
 def handle_tool_call(name: str, arguments: Any) -> ToolResult:
     """Handle tool calls from interaction agent."""
+    logger.info(f"Inside handle_tool_call in interaction_agent/tools.py, tool_name: {name}, arguments: {arguments}")
     try:
         if isinstance(arguments, str):
             args = json.loads(arguments) if arguments.strip() else {}
@@ -226,19 +234,25 @@ def handle_tool_call(name: str, arguments: Any) -> ToolResult:
             return ToolResult(success=False, payload={"error": "Invalid arguments format"})
 
         if name == "send_message_to_agent":
+            logger.info(f"send_message_to_agent called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
             return send_message_to_agent(**args) 
         if name == "send_message_to_user":
+            logger.info(f"send_message_to_user called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
             return send_message_to_user(**args)  #send tool output directly to user
         if name == "send_draft":
+            logger.info(f"send_draft called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
             return send_draft(**args)  #outputs draft that is then stored in messge history, used after confirmation
         if name == "wait":
+            logger.info(f"wait called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
             return wait(**args) #returns reason for waiting, agent sees this and ends loop
 
         logger.warning("unexpected tool", extra={"tool": name})
         return ToolResult(success=False, payload={"error": f"Unknown tool: {name}"})
     except json.JSONDecodeError:
+        logger.error("Invalid JSON, in handle_tool_call inside interaction_agent/tools.py")
         return ToolResult(success=False, payload={"error": "Invalid JSON"})
     except TypeError as exc:
+        logger.error(f"Missing required arguments: {exc}, in handle_tool_call inside interaction_agent/tools.py")
         return ToolResult(success=False, payload={"error": f"Missing required arguments: {exc}"})
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("tool call failed", extra={"tool": name, "error": str(exc)})
