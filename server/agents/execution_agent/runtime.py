@@ -241,7 +241,7 @@ class ExecutionAgentRuntime:
             return False, {"error": f"Unknown tool: {tool_name}"}
 
         try:
-            logger.info(f"Tool {tool_name} called, passing arguments, inside _execute_tool inside execution runtime right now, arguments {**arguments}")
+            logger.info(f"Tool {tool_name} called, passing arguments, inside _execute_tool inside execution runtime right now, arguments {arguments}")
             result = tool_func(**arguments)
             if inspect.isawaitable(result):
                 result = await result

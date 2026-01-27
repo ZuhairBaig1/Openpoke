@@ -234,16 +234,16 @@ def handle_tool_call(name: str, arguments: Any) -> ToolResult:
             return ToolResult(success=False, payload={"error": "Invalid arguments format"})
 
         if name == "send_message_to_agent":
-            logger.info(f"send_message_to_agent called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
+            logger.info(f"send_message_to_agent called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return send_message_to_agent(**args) 
         if name == "send_message_to_user":
-            logger.info(f"send_message_to_user called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
+            logger.info(f"send_message_to_user called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return send_message_to_user(**args)  #send tool output directly to user
         if name == "send_draft":
-            logger.info(f"send_draft called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
+            logger.info(f"send_draft called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return send_draft(**args)  #outputs draft that is then stored in messge history, used after confirmation
         if name == "wait":
-            logger.info(f"wait called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {**args}")
+            logger.info(f"wait called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return wait(**args) #returns reason for waiting, agent sees this and ends loop
 
         logger.warning("unexpected tool", extra={"tool": name})
