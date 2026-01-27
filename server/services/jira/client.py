@@ -111,13 +111,19 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
     if not sanitized:
         return None
     try:
-        result = execute_jira_tool("JIRA_GET_MY_SELF", sanitized)
+        result = execute_jira_tool(
+            "JIRA_GET_CURRENT_USER",
+            sanitized,
+            arguments={
+                "expand": "groups,applicationRoles"
+            }
+        )
         profile = result.get("data") or result.get("profile") or result
         if isinstance(profile, dict):
             _cache_profile(sanitized, profile)
             return profile
     except Exception as exc:
-        logger.warning("JIRA_GET_MY_SELF failed", extra={"user_id": sanitized, "error": str(exc)})
+        logger.warning(f"JIRA_GET_CURRENT_USER failed, error:- {str(exc)}", extra={"user_id": sanitized, "error": str(exc)})
     return None
 
 # --- Main API Methods ---
