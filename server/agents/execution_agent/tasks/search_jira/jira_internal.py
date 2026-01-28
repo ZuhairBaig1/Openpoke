@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional
 
 from server.services.jira import execute_jira_tool, get_active_jira_user_id
 
+from server.logging_config import logger
+
 # --- Tool Schemas for the Search Specialist ---
 
 JIRA_SEARCH_JQL_SCHEMA = {
@@ -254,6 +256,7 @@ def jira_search_issues_using_jql(
     composio_user_id = get_active_jira_user_id()
     if not composio_user_id:
         return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Active Jira user ID: {composio_user_id}, being passed to jira_search_issues_using_jql")
 
     arguments: Dict[str, Any] = {
         "jql": jql,
@@ -288,6 +291,7 @@ def jira_get_issue(
     composio_user_id = get_active_jira_user_id()
     if not composio_user_id:
         return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Active Jira user ID: {composio_user_id}, being passed to jira_get_issue")
 
     arguments: Dict[str, Any] = {
         "issue_key": issue_key,
@@ -319,6 +323,7 @@ def jira_list_issue_comments(
     composio_user_id = get_active_jira_user_id()
     if not composio_user_id:
         return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Active Jira user ID: {composio_user_id}, being passed to jira_list_issue_comments")
 
     arguments: Dict[str, Any] = {
         "issue_id_or_key": issue_id_or_key,
@@ -353,6 +358,7 @@ def jira_get_all_projects(
     composio_user_id = get_active_jira_user_id()
     if not composio_user_id:
         return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Active Jira user ID: {composio_user_id}, being passed to jira_get_all_projects")
 
     arguments: Dict[str, Any] = {
         "action": action,

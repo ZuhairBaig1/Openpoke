@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from server.services.execution import get_execution_agent_logs
 from server.services.jira import execute_jira_tool, get_active_jira_user_id
+from server.logging_config import logger
 
 _JIRA_AGENT_NAME = "jira-execution-agent"
 
@@ -538,6 +539,7 @@ def jira_create_issue(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_create_issue")
     return _execute("jira_create_issue", uid, arguments)
 
 def jira_edit_issue(
@@ -562,6 +564,7 @@ def jira_edit_issue(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_edit_issue")
     return _execute("jira_edit_issue", uid, arguments)
 
 def jira_transition_issue(
@@ -586,6 +589,7 @@ def jira_transition_issue(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_transition_issue")
     return _execute("jira_transition_issue", uid, arguments)
 
 def jira_get_transitions(
@@ -606,6 +610,7 @@ def jira_get_transitions(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_transitions")
     return _execute("jira_get_transitions", uid, arguments)
 
 # --- Comment Functions ---
@@ -624,6 +629,7 @@ def jira_add_comment(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_add_comment")
     return _execute("jira_add_comment", uid, arguments)
 
 def jira_update_comment(
@@ -646,6 +652,7 @@ def jira_update_comment(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_update_comment")
     return _execute("jira_update_comment", uid, arguments)
 
 # --- Project & User Discovery ---
@@ -676,6 +683,7 @@ def jira_get_all_projects(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_all_projects")
     return _execute("jira_get_all_projects", uid, arguments)
 
 def jira_get_project(
@@ -690,6 +698,7 @@ def jira_get_project(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_project")
     return _execute("jira_get_project", uid, arguments)
 
 def jira_find_users(
@@ -708,6 +717,7 @@ def jira_find_users(
     }
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
+    logger.info(f"Active Jira user ID: {uid}, being passed to jira_find_users")
     return _execute("jira_find_users", uid, arguments)
 
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
