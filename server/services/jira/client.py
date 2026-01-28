@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 import threading
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -30,6 +31,7 @@ def _set_active_jira_user_id(user_id: Optional[str]) -> None:
     with _ACTIVE_USER_ID_LOCK:
         global _ACTIVE_USER_ID
         _ACTIVE_USER_ID = sanitized or None
+    logger.info(f"Active Jira user ID set to: {sanitized}")
 
 def get_active_jira_user_id() -> Optional[str]:
     with _ACTIVE_USER_ID_LOCK:
@@ -141,7 +143,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     if not auth_config_id:
         return error_response("Missing auth_config_id for Jira.", status_code=400)
 
-    user_id = payload.user_id or f"web-jira-{os.getpid()}"
+    user_id = payload.user_id or f"web-jira-{uuid.uuid4()}"
     _set_active_jira_user_id(user_id)
     _clear_cached_profile(user_id)
 
@@ -227,7 +229,8 @@ def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
                 p_details = _extract_jira_details(profile)
                 for k in details:
                     if not details[k]: details[k] = p_details[k]
-
+                
+        logger.info(f"Setting active Jira user_id using _set_active_jira_user_id:- {user_id}")    
         _set_active_jira_user_id(user_id)
         return JSONResponse({
             "ok": True,
