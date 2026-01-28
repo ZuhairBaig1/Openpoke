@@ -483,6 +483,7 @@ def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -
     
     try:
         # Note: tool_name is passed exactly as defined in the schema 'name' field
+        logger.info(f"PASSING ARGUMENTS TO EXECUTE JIRA TOOL: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={payload}")
         result = execute_jira_tool(tool_name, composio_user_id, arguments=payload)
     except Exception as exc:
         _LOG_STORE.record_action(

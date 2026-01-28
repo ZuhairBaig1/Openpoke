@@ -288,8 +288,12 @@ def execute_jira_tool(tool_name: str, composio_user_id: str, *, arguments: Optio
     prepared_args = {k: v for k, v in (arguments or {}).items() if v is not None}
     try:
         client = _get_composio_client()
+        logger.info(f"BEFORE CALLING client.client.tools.execute: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={prepared_args}, in execute_jira_tool inside jira client.py")
         result = client.client.tools.execute(tool_name, user_id=composio_user_id, arguments=prepared_args)
-        if hasattr(result, "model_dump"): return result.model_dump()
+        if hasattr(result, "model_dump"):
+            logger.info(f"AFTER CALLING client.client.tools.execute: WILL RETURN {result.model_dump()}, in execute_jira_tool inside jira client.py")
+            return result.model_dump()
+        logger.info(f"AFTER CALLING client.client.tools.execute: WILL RETURN {result if isinstance(result, dict) else {"repr": str(result)}}, in execute_jira_tool inside jira client.py")
         return result if isinstance(result, dict) else {"repr": str(result)}
     except Exception as exc:
         logger.exception("Jira tool execution failed", extra={"tool": tool_name, "user_id": composio_user_id})
