@@ -585,7 +585,7 @@ export default function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="card w-full max-w-lg p-6">
+      <div className="card w-full max-w-4xl max-h-[90vh] flex flex-col p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Settings</h2>
           <button onClick={onClose} className="rounded-md p-2 hover:bg-gray-100" aria-label="Close settings">
@@ -607,165 +607,167 @@ export default function SettingsModal({
               {timezone ? 'Auto-detected from browser. Edit to override.' : 'Will be auto-detected on next page load.'}
             </p>
           </div>
-          <div className="pt-2">
+          <div className="pt-2 flex-1 overflow-y-auto pr-1">
             <div className="mb-1 text-sm font-medium text-gray-700">Integrations</div>
-            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 shadow-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Gmail (via Composio)</div>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Connect Gmail to unlock email search, drafting, and automations inside OpenPoke.
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${gmailConnected
-                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                    : 'bg-amber-50 text-amber-700 ring-amber-200'
-                    }`}
-                >
-                  {gmailConnected ? 'Connected' : 'Not connected'}
-                </span>
-              </div>
-
-              {gmailConnected ? (
-                <div className="mt-4 space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-gray-200 bg-white/70 p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Connected account</div>
-                    <div className="mt-1 text-sm font-medium text-gray-900">{gmailEmail || 'Email unavailable'}</div>
+                    <div className="text-sm font-semibold text-gray-900">Gmail (via Composio)</div>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Connect Gmail to unlock email search, drafting, and automations inside OpenPoke.
+                    </p>
                   </div>
-                  {gmailProfileDetails.length > 0 && (
-                    <dl className="grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-3">
-                      {gmailProfileDetails.map((item) => (
-                        <div key={item.label} className="rounded-md border border-gray-200 bg-white/80 p-2">
-                          <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{item.label}</dt>
-                          <dd className="mt-1 text-sm font-medium text-gray-900">{item.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                  {gmailStatusMessage && (
-                    <p className="text-xs text-gray-500" aria-live="polite">{gmailStatusMessage}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-3 text-sm text-gray-500" aria-live="polite">
-                  {gmailStatusMessage || 'Complete the connection to view your Gmail account details here.'}
-                </div>
-              )}
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={handleConnectGmail}
-                  disabled={connectingGmail || isRefreshingGmail || isDisconnecting}
-                  aria-busy={connectingGmail}
-                >
-                  {connectButtonLabel}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={refreshGmailStatus}
-                  disabled={isRefreshingGmail || connectingGmail}
-                  aria-busy={isRefreshingGmail}
-                >
-                  {refreshButtonLabel}
-                </button>
-                {gmailConnected && (
-                  <button
-                    type="button"
-                    className="rounded-md border border-transparent bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    onClick={handleDisconnectGmail}
-                    disabled={isDisconnecting || connectingGmail}
-                    aria-busy={isDisconnecting}
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${gmailConnected
+                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                      : 'bg-amber-50 text-amber-700 ring-amber-200'
+                      }`}
                   >
-                    {disconnectButtonLabel}
-                  </button>
-                )}
-              </div>
-            </div>
+                    {gmailConnected ? 'Connected' : 'Not connected'}
+                  </span>
+                </div>
 
-            {/* Jira Integration */}
-            <div className="rounded-xl border border-gray-200 bg-white/70 p-4 shadow-sm mt-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Jira (via Composio)</div>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Connect Jira to unlock issue search, creation, and automations inside OpenPoke.
-                  </p>
-                  {!jiraConnected && (
-                    <div className="mt-3">
-                      <label className="block text-xs font-medium text-gray-700">Atlassian Subdomain</label>
-                      <div className="mt-1 flex items-center rounded-md bg-white px-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                        <input
-                          type="text"
-                          className="block min-w-0 grow py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
-                          placeholder="your-company"
-                          value={jiraSubdomain}
-                          onChange={(e) => setJiraSubdomain(e.target.value)}
-                        />
-                        <div className="shrink-0 select-none text-base text-gray-500 sm:text-sm/6">.atlassian.net</div>
-                      </div>
+                {gmailConnected ? (
+                  <div className="mt-4 space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Connected account</div>
+                      <div className="mt-1 text-sm font-medium text-gray-900">{gmailEmail || 'Email unavailable'}</div>
                     </div>
-                  )}
-                </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${jiraConnected
-                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                    : 'bg-amber-50 text-amber-700 ring-amber-200'
-                    }`}
-                >
-                  {jiraConnected ? 'Connected' : 'Not connected'}
-                </span>
-              </div>
-
-              {jiraConnected ? (
-                <div className="mt-4 space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Connected account</div>
-                    <div className="mt-1 text-sm font-medium text-gray-900">{jiraDisplayName || jiraEmail || 'Account unavailable'}</div>
+                    {gmailProfileDetails.length > 0 && (
+                      <dl className="grid grid-cols-1 gap-2 text-xs text-gray-600 sm:grid-cols-3">
+                        {gmailProfileDetails.map((item) => (
+                          <div key={item.label} className="rounded-md border border-gray-200 bg-white/80 p-2">
+                            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{item.label}</dt>
+                            <dd className="mt-1 text-sm font-medium text-gray-900">{item.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    {gmailStatusMessage && (
+                      <p className="text-xs text-gray-500" aria-live="polite">{gmailStatusMessage}</p>
+                    )}
                   </div>
-                  {jiraStatusMessage && (
-                    <p className="text-xs text-gray-500" aria-live="polite">{jiraStatusMessage}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-3 text-sm text-gray-500" aria-live="polite">
-                  {jiraStatusMessage || 'Complete the connection to view your Jira account details here.'}
-                </div>
-              )}
+                ) : (
+                  <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-3 text-sm text-gray-500" aria-live="polite">
+                    {gmailStatusMessage || 'Complete the connection to view your Gmail account details here.'}
+                  </div>
+                )}
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={handleConnectJira}
-                  disabled={connectingJira || isRefreshingJira || isDisconnectingJira || (!jiraConnected && !jiraSubdomain)}
-                  aria-busy={connectingJira}
-                >
-                  {jiraConnectButtonLabel}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={refreshJiraStatus}
-                  disabled={isRefreshingJira || connectingJira}
-                  aria-busy={isRefreshingJira}
-                >
-                  {jiraRefreshButtonLabel}
-                </button>
-                {jiraConnected && (
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="rounded-md border border-transparent bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    onClick={handleDisconnectJira}
-                    disabled={isDisconnectingJira || connectingJira}
-                    aria-busy={isDisconnectingJira}
+                    className="btn"
+                    onClick={handleConnectGmail}
+                    disabled={connectingGmail || isRefreshingGmail || isDisconnecting}
+                    aria-busy={connectingGmail}
                   >
-                    {jiraDisconnectButtonLabel}
+                    {connectButtonLabel}
                   </button>
+                  <button
+                    type="button"
+                    className="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={refreshGmailStatus}
+                    disabled={isRefreshingGmail || connectingGmail}
+                    aria-busy={isRefreshingGmail}
+                  >
+                    {refreshButtonLabel}
+                  </button>
+                  {gmailConnected && (
+                    <button
+                      type="button"
+                      className="rounded-md border border-transparent bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={handleDisconnectGmail}
+                      disabled={isDisconnecting || connectingGmail}
+                      aria-busy={isDisconnecting}
+                    >
+                      {disconnectButtonLabel}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Jira Integration */}
+              <div className="rounded-xl border border-gray-200 bg-white/70 p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Jira (via Composio)</div>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Connect Jira to unlock issue search, creation, and automations inside OpenPoke.
+                    </p>
+                    {!jiraConnected && (
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-700">Atlassian Subdomain</label>
+                        <div className="mt-1 flex items-center rounded-md bg-white px-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
+                          <input
+                            type="text"
+                            className="block min-w-0 grow py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                            placeholder="your-company"
+                            value={jiraSubdomain}
+                            onChange={(e) => setJiraSubdomain(e.target.value)}
+                          />
+                          <div className="shrink-0 select-none text-base text-gray-500 sm:text-sm/6">.atlassian.net</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${jiraConnected
+                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                      : 'bg-amber-50 text-amber-700 ring-amber-200'
+                      }`}
+                  >
+                    {jiraConnected ? 'Connected' : 'Not connected'}
+                  </span>
+                </div>
+
+                {jiraConnected ? (
+                  <div className="mt-4 space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Connected account</div>
+                      <div className="mt-1 text-sm font-medium text-gray-900">{jiraDisplayName || jiraEmail || 'Account unavailable'}</div>
+                    </div>
+                    {jiraStatusMessage && (
+                      <p className="text-xs text-gray-500" aria-live="polite">{jiraStatusMessage}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-3 text-sm text-gray-500" aria-live="polite">
+                    {jiraStatusMessage || 'Complete the connection to view your Jira account details here.'}
+                  </div>
                 )}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleConnectJira}
+                    disabled={connectingJira || isRefreshingJira || isDisconnectingJira || (!jiraConnected && !jiraSubdomain)}
+                    aria-busy={connectingJira}
+                  >
+                    {jiraConnectButtonLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={refreshJiraStatus}
+                    disabled={isRefreshingJira || connectingJira}
+                    aria-busy={isRefreshingJira}
+                  >
+                    {jiraRefreshButtonLabel}
+                  </button>
+                  {jiraConnected && (
+                    <button
+                      type="button"
+                      className="rounded-md border border-transparent bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={handleDisconnectJira}
+                      disabled={isDisconnectingJira || connectingJira}
+                      aria-busy={isDisconnectingJira}
+                    >
+                      {jiraDisconnectButtonLabel}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
