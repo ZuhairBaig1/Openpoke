@@ -8,6 +8,7 @@ from .agent import build_system_prompt, prepare_message_with_history
 from .tools import ToolResult, get_tool_schemas, handle_tool_call
 from ...config import get_settings
 from ...services.conversation import get_conversation_log, get_working_memory_log
+from ...services.jira import get_active_jira_user_id
 from ...openrouter_client import request_chat_completion
 from ...logging_config import logger
 
@@ -68,6 +69,8 @@ class InteractionAgentRuntime:
 
         try:
             # formatting user input with history
+            user_id = get_active_jira_user_id()
+            logger.info(f"USER_ID: {user_id}, in execute (for user messages) inside interaction runtime")
             transcript_before = self._load_conversation_transcript()
             self.conversation_log.record_user_message(user_message)
 

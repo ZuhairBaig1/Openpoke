@@ -7,6 +7,7 @@ from .client import (
     get_active_jira_user_id,
     jira_initiate_connect,
 )
+
 from .importance_classifier import classify_jira_changes
 from .importance_watcher import ImportantIssueWatcher, get_important_issue_watcher
 from .processing import JiraContentCleaner, ProcessedJiraIssue, parse_jira_search_response
