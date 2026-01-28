@@ -61,7 +61,7 @@ async def request_chat_completion(
 ) -> Dict[str, Any]:
     """Request a chat completion and return the raw JSON payload."""
 
-    logger.info("Before creating payload, in request_chat_completion inside openrouter client")
+    logger.info(f"Before creating payload, in request_chat_completion inside openrouter client, model :- {model}")
     payload: Dict[str, object] = {
         "model": model,
         "messages": _build_messages(messages, system),

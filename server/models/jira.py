@@ -10,7 +10,6 @@ class JiraConnectPayload(BaseModel):
 
     user_id: Optional[str] = Field(default=None, alias="user_id")
     auth_config_id: Optional[str] = Field(default=None, alias="auth_config_id")
-    subdomain: Optional[str] = Field(default=None, alias="subdomain")
 
 
 class JiraStatusPayload(BaseModel):

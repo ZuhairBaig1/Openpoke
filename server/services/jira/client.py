@@ -150,8 +150,7 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
     logger.info(f"Jira user_id: {user_id}")
 
     subdomain = (
-        (payload.subdomain or "").strip()
-        or (settings.jira_subdomain or "").strip()
+        (settings.jira_subdomain or "").strip()
         or (os.getenv("JIRA_SUBDOMAIN") or "").strip()
     )
 
