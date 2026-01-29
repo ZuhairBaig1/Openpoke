@@ -135,32 +135,24 @@ export default function SettingsModal({
   const [jiraConnId, setJiraConnId] = useState('');
   const [jiraProfile, setJiraProfile] = useState<Record<string, unknown> | null>(null);
 
-  const readStoredUserId = useCallback(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      return localStorage.getItem('openpoke_user_id') || '';
-    } catch {
-      return '';
-    }
+  const GMAIL_ID_KEY = 'openpoke_gmail_user_id';
+  const JIRA_ID_KEY = 'openpoke_jira_user_id';
+
+  const generateNewUserId = useCallback(() => {
+    const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
+    const randomPart =
+      cryptoObj && typeof cryptoObj.randomUUID === 'function'
+        ? cryptoObj.randomUUID().replace(/-/g, '')
+        : Math.random().toString(36).slice(2);
+    return `web-${randomPart}`;
   }, []);
 
-  const ensureUserId = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return `web-${Math.random().toString(36).slice(2)}`;
-    }
+  const readStoredUserId = useCallback((key: string) => {
+    if (typeof window === 'undefined') return '';
     try {
-      const existing = localStorage.getItem('openpoke_user_id');
-      if (existing) return existing;
-      const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
-      const randomPart =
-        cryptoObj && typeof cryptoObj.randomUUID === 'function'
-          ? cryptoObj.randomUUID().replace(/-/g, '')
-          : Math.random().toString(36).slice(2);
-      const generated = `web-${randomPart}`;
-      localStorage.setItem('openpoke_user_id', generated);
-      return generated;
+      return localStorage.getItem(key) || '';
     } catch {
-      return `web-${Math.random().toString(36).slice(2)}`;
+      return '';
     }
   }, []);
 
@@ -237,10 +229,17 @@ export default function SettingsModal({
   }, [gmailProfile]);
 
   const handleConnectGmail = useCallback(async () => {
+    if (gmailConnected) {
+      setGmailStatusMessage('Gmail is already connected. Disconnect first to reconnect with a new ID.');
+      return;
+    }
+
     try {
       setConnectingGmail(true);
       setGmailStatusMessage('');
-      const userId = ensureUserId();
+
+      const userId = generateNewUserId();
+
       const resp = await fetch('/api/gmail/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,6 +251,10 @@ export default function SettingsModal({
         setGmailStatusMessage(msg);
         return;
       }
+
+      try {
+        localStorage.setItem(GMAIL_ID_KEY, userId);
+      } catch { }
       const url = data?.redirect_url;
       const connId = data?.connection_request_id || '';
       if (connId) {
@@ -274,10 +277,10 @@ export default function SettingsModal({
     } finally {
       setConnectingGmail(false);
     }
-  }, [ensureUserId]);
+  }, [generateNewUserId, gmailConnected]);
 
   const refreshGmailStatus = useCallback(async () => {
-    const userId = readStoredUserId();
+    const userId = readStoredUserId(GMAIL_ID_KEY);
     const connectionRequestId = readStoredConnectionRequestId();
     if (!userId && !connectionRequestId) {
       setGmailConnected(false);
@@ -329,7 +332,7 @@ export default function SettingsModal({
           localStorage.setItem('gmail_connected', 'true');
           if (email) localStorage.setItem('gmail_email', email);
           if (typeof data?.user_id === 'string' && data.user_id) {
-            localStorage.setItem('openpoke_user_id', data.user_id);
+            localStorage.setItem(GMAIL_ID_KEY, data.user_id);
           }
         } catch { }
       } else {
@@ -350,7 +353,7 @@ export default function SettingsModal({
     } finally {
       setIsRefreshingGmail(false);
     }
-  }, [gmailConnId, readStoredConnectionRequestId, readStoredUserId]);
+  }, [gmailConnId, readStoredConnectionRequestId, readStoredUserId, GMAIL_ID_KEY]);
 
   const handleDisconnectGmail = useCallback(async () => {
     if (typeof window !== 'undefined') {
@@ -361,7 +364,7 @@ export default function SettingsModal({
     try {
       setIsDisconnecting(true);
       setGmailStatusMessage('Disconnecting Gmail…');
-      const userId = readStoredUserId();
+      const userId = readStoredUserId(GMAIL_ID_KEY);
       const connectionRequestId = readStoredConnectionRequestId();
       const resp = await fetch('/api/gmail/disconnect', {
         method: 'POST',
@@ -381,25 +384,33 @@ export default function SettingsModal({
       setGmailProfile(null);
       setGmailConnId('');
       setGmailStatusMessage('Gmail disconnected.');
+
       try {
         localStorage.removeItem('gmail_connected');
         localStorage.removeItem('gmail_email');
         localStorage.removeItem('gmail_connection_request_id');
-        localStorage.removeItem('openpoke_user_id');
+        localStorage.removeItem(GMAIL_ID_KEY);
       } catch { }
     } catch (e: any) {
       setGmailStatusMessage(e?.message || 'Failed to disconnect Gmail');
     } finally {
       setIsDisconnecting(false);
     }
-  }, [readStoredConnectionRequestId, readStoredUserId]);
+  }, [readStoredConnectionRequestId, readStoredUserId, GMAIL_ID_KEY]);
 
   // --- Jira handlers ---
   const handleConnectJira = useCallback(async () => {
+    if (jiraConnected) {
+      setJiraStatusMessage('Jira is already connected. Disconnect first to reconnect with a new ID.');
+      return;
+    }
+
     try {
       setConnectingJira(true);
       setJiraStatusMessage('');
-      const userId = ensureUserId();
+
+      const userId = generateNewUserId();
+
       const resp = await fetch('/api/jira/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -411,6 +422,10 @@ export default function SettingsModal({
         setJiraStatusMessage(msg);
         return;
       }
+
+      try {
+        localStorage.setItem(JIRA_ID_KEY, userId);
+      } catch { }
       const url = data?.redirect_url;
       const connId = data?.connection_request_id || '';
       if (connId) {
@@ -434,10 +449,10 @@ export default function SettingsModal({
     } finally {
       setConnectingJira(false);
     }
-  }, [ensureUserId]);
+  }, [generateNewUserId, jiraConnected]);
 
   const refreshJiraStatus = useCallback(async () => {
-    const userId = readStoredUserId();
+    const userId = readStoredUserId(JIRA_ID_KEY);
     const connectionRequestId = readStoredJiraConnectionRequestId();
     if (!userId && !connectionRequestId) {
       setJiraConnected(false);
@@ -491,7 +506,7 @@ export default function SettingsModal({
           if (displayName) localStorage.setItem('jira_display_name', displayName);
           if (email) localStorage.setItem('jira_email', email);
           if (typeof data?.user_id === 'string' && data.user_id) {
-            localStorage.setItem('openpoke_user_id', data.user_id);
+            localStorage.setItem(JIRA_ID_KEY, data.user_id);
           }
         } catch { }
       } else {
@@ -514,7 +529,7 @@ export default function SettingsModal({
     } finally {
       setIsRefreshingJira(false);
     }
-  }, [jiraConnId, readStoredJiraConnectionRequestId, readStoredUserId]);
+  }, [jiraConnId, readStoredJiraConnectionRequestId, readStoredUserId, JIRA_ID_KEY]);
 
   const handleDisconnectJira = useCallback(async () => {
     if (typeof window !== 'undefined') {
@@ -525,7 +540,7 @@ export default function SettingsModal({
     try {
       setIsDisconnectingJira(true);
       setJiraStatusMessage('Disconnecting Jira…');
-      const userId = readStoredUserId();
+      const userId = readStoredUserId(JIRA_ID_KEY);
       const connectionRequestId = readStoredJiraConnectionRequestId();
       const resp = await fetch('/api/jira/disconnect', {
         method: 'POST',
@@ -546,18 +561,22 @@ export default function SettingsModal({
       setJiraProfile(null);
       setJiraConnId('');
       setJiraStatusMessage('Jira disconnected.');
+
       try {
         localStorage.removeItem('jira_connected');
         localStorage.removeItem('jira_display_name');
         localStorage.removeItem('jira_email');
         localStorage.removeItem('jira_connection_request_id');
+        console.log(`Going to remove jira id key from local browser storage: ${localStorage.getItem(JIRA_ID_KEY)}`)
+        localStorage.removeItem(JIRA_ID_KEY);
+        console.log(`Jira disconnected successfully, jira id now: ${localStorage.getItem(JIRA_ID_KEY)}`)
       } catch { }
     } catch (e: any) {
       setJiraStatusMessage(e?.message || 'Failed to disconnect Jira');
     } finally {
       setIsDisconnectingJira(false);
     }
-  }, [readStoredJiraConnectionRequestId, readStoredUserId]);
+  }, [readStoredJiraConnectionRequestId, readStoredUserId, JIRA_ID_KEY]);
 
   useEffect(() => {
     setTimezone(settings.timezone);

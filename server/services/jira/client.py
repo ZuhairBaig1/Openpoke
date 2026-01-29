@@ -20,22 +20,22 @@ _CLIENT: Optional[Any] = None
 
 _PROFILE_CACHE: Dict[str, Dict[str, Any]] = {}
 _PROFILE_CACHE_LOCK = threading.Lock()
-_ACTIVE_USER_ID_LOCK = threading.Lock()
-_ACTIVE_USER_ID: Optional[str] = None
+_ACTIVE_USER_ID_JIRA_LOCK = threading.Lock()
+_ACTIVE_USER_ID_JIRA: Optional[str] = None
 
 def _normalized(value: Optional[str]) -> str:
     return (value or "").strip()
 
 def _set_active_jira_user_id(user_id: Optional[str]) -> None:
     sanitized = _normalized(user_id)
-    with _ACTIVE_USER_ID_LOCK:
-        global _ACTIVE_USER_ID
-        _ACTIVE_USER_ID = sanitized or None
+    with _ACTIVE_USER_ID_JIRA_LOCK:
+        global _ACTIVE_USER_ID_JIRA
+        _ACTIVE_USER_ID_JIRA = sanitized or None
     logger.info(f"Active Jira user ID set to: {sanitized}")
 
 def get_active_jira_user_id() -> Optional[str]:
-    with _ACTIVE_USER_ID_LOCK:
-        return _ACTIVE_USER_ID
+    with _ACTIVE_USER_ID_JIRA_LOCK:
+        return _ACTIVE_USER_ID_JIRA
 
 def _jira_import_client():
     from composio import Composio  # type: ignore
