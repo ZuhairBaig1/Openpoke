@@ -24,6 +24,8 @@ def get_system_prompt() -> str:
         "- `jira_list_comments`: Retrieve discussion history for a specific issue\n"
         "- `jira_list_projects`: List all accessible projects (useful for finding project keys like 'PROJ')\n"
         "- `return_search_results`: Final tool to return the relevant issue keys to the user\n"
+        "- `jira_get_group`: Retrieve full details for a specific Jira group, such as 'site-admins' or 'developers'. essential for listing members within a group.\n"
+        "- `jira_get_all_groups`: List all accessible groups (useful for finding group names like 'site-admins' or 'developers')\n"
         "\n"
         "## Jira Search Strategy (JQL):\n"
         "1. **Use JQL operators** to create precise searches:\n"

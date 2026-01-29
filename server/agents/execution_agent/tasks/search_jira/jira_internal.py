@@ -236,6 +236,58 @@ JIRA_LIST_PROJECTS_SCHEMA = {
         }
     }
 
+JIRA_GET_ALL_GROUPS_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "jira_get_all_groups",
+        "description": "Retrieve a list of all user groups available in the Jira instance. Useful for permissions auditing and group discovery.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "max_results": {
+                    "type": "integer",
+                    "description": "The maximum number of groups to return per page. Used for pagination.",
+                    "default": 50
+                },
+                "start_at": {
+                    "type": "integer",
+                    "description": "The index of the first item to return. Used for pagination to skip over groups already retrieved.",
+                    "default": 0
+                }
+            },
+            "required": [],
+            "additionalProperties": False
+        }
+    }
+}
+
+JIRA_GET_GROUP_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "jira_get_group",
+        "description": "Retrieve full details for a specific Jira group, such as 'site-admins' or 'developers'. essential for listing members within a group.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "group_name": {
+                    "type": "string",
+                    "description": "The name of the group to retrieve (e.g., 'jira-software-users'). Either group_name or group_id must be provided."
+                },
+                "group_id": {
+                    "type": "string",
+                    "description": "The unique ID of the group to retrieve. Either group_name or group_id must be provided."
+                },
+                "expand": {
+                    "type": "string",
+                    "description": "List of entities to expand in the response. Pass 'users' to retrieve the list of members in this group."
+                }
+            },
+            "required": [],
+            "additionalProperties": False
+        }
+    }
+}
+
 
 # --- Internal Wrapper Functions ---
 
@@ -379,6 +431,56 @@ def jira_get_all_projects(
         arguments,
     )
 
+    def jira_get_all_groups(
+        max_results: int = 50,
+        start_at: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Retrieve a list of all user groups available in the Jira instance.
+        """
+        composio_user_id = get_active_jira_user_id()
+        if not composio_user_id:
+            return {"error": "Jira not connected. Please connect Jira in settings first."}
+        logger.info(f"Active Jira user ID: {composio_user_id}, being passed to jira_get_all_groups")
+
+        arguments: Dict[str, Any] = {
+            "max_results": max_results,
+            "start_at": start_at,
+        }
+
+        return execute_jira_tool(
+            "JIRA_GET_ALL_GROUPS",
+            composio_user_id,
+            arguments,
+        )
+
+    def jira_get_group(
+        group_name: Optional[str] = None,
+        group_id: Optional[str] = None,
+        expand: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Retrieve full details for a specific Jira group, such as 'site-admins' or 'developers'. essential for listing members within a group.
+        """
+        composio_user_id = get_active_jira_user_id()
+        if not composio_user_id:
+            return {"error": "Jira not connected. Please connect Jira in settings first."}
+        logger.info(f"Active Jira user ID: {composio_user_id}, being passed to jira_get_group")
+
+        arguments: Dict[str, Any] = {
+            "group_name": group_name,
+            "group_id": group_id,
+            "expand": expand,
+        }
+
+        return execute_jira_tool(
+            "JIRA_GET_GROUP",
+            composio_user_id,
+            arguments,
+        )
+
+
+
 
 __all__ = [
     "jira_search_issues_using_jql",
@@ -389,4 +491,6 @@ __all__ = [
     "JIRA_GET_ISSUE_SCHEMA",
     "JIRA_LIST_ISSUE_COMMENTS_SCHEMA",
     "JIRA_GET_ALL_PROJECTS_SCHEMA",
+    "JIRA_GET_GROUP_SCHEMA",
+    "JIRA_GET_ALL_GROUPS_SCHEMA",
 ]
