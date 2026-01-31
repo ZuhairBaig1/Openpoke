@@ -63,6 +63,7 @@ class Settings(BaseModel):
     composio_gmail_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_GMAIL_AUTH_CONFIG_ID"))
     composio_jira_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_JIRA_AUTH_CONFIG_ID"))
     jira_subdomain: Optional[str] = Field(default=os.getenv("JIRA_SUBDOMAIN"))
+    composio_googlecalendar_auth_config_id: Optional[str] = Field(default=os.getenv("COMPOSIO_GOOGLECALENDAR_AUTH_CONFIG_ID"))
     composio_api_key: Optional[str] = Field(default=os.getenv("COMPOSIO_API_KEY"))
 
     # HTTP behaviour

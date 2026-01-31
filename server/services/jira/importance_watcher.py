@@ -27,6 +27,7 @@ DEFAULT_SEEN_LIMIT = 1000
 
 _DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 _DEFAULT_SEEN_PATH = _DATA_DIR / "jira_seen.json"
+_watcher_instance: Optional[ImportantIssueWatcher] = None
 
 class ImportantIssueWatcher:
     """Polls Jira and uses an AI Classifier to determine notification worthiness."""
@@ -230,7 +231,7 @@ class ImportantIssueWatcher:
 def get_important_issue_watcher() -> ImportantIssueWatcher:
     global _watcher_instance
     if _watcher_instance is None:
-        _watcher_instance = ImportantIssueWatcher
+        _watcher_instance = ImportantIssueWatcher()
     return _watcher_instance
 
 __all__ = ["ImportantIssueWatcher", "get_important_issue_watcher"]
