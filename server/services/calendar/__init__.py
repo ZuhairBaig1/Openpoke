@@ -11,7 +11,12 @@ from .calendar_watcher import (
     CalendarWatcher,
     get_calendar_watcher,
     process_event,
-    dispatch_alert,
+)
+
+from .processing import (
+    ProcessedCalendarEvent,
+    build_processed_event,
+    format_event_alert,
 )
 
 __all__ = [
@@ -24,5 +29,7 @@ __all__ = [
     "CalendarWatcher",
     "get_calendar_watcher",
     "process_event",
-    "dispatch_alert",
+    "ProcessedCalendarEvent",
+    "build_processed_event",
+    "format_event_alert",
 ]
