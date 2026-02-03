@@ -95,7 +95,7 @@ def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> An
 
 
 # --- ADDED: Trigger Enabler Function ---
-def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict) -> Dict[str, Any]:
+def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Enables a specific trigger (e.g., RSVP changes) for a user.
     """

@@ -6,6 +6,7 @@ import json
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
 
+from server.services.calendar.client import enable_calendar_trigger, get_active_calendar_user_id
 from server.services.execution import get_execution_agent_logs
 from server.services.timezone_store import get_timezone_store
 from server.services.triggers import TriggerRecord, get_trigger_service
@@ -88,20 +89,42 @@ _SCHEMAS: List[Dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "enableCalendarStartingSoonTrigger",
+            "description": "Fires when a Google Calendar event is about to start.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "calendarId": {
+                        "type": "string",
+                        "description": "The unique identifier for the calendar to monitor (e.g., 'primary').",
+                        "default": "primary",
+                    },
+                    "minutes_before_start": {
+                        "type": "integer",
+                        "description": "Trigger when an event is within this many minutes from starting.",
+                        "default": 10,
+                    },
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 _LOG_STORE = get_execution_agent_logs()
 _TRIGGER_SERVICE = get_trigger_service()
 
 
-# Return trigger tool schemas
 def get_schemas() -> List[Dict[str, Any]]:
     """Return trigger tool schemas."""
 
     return _SCHEMAS
 
 
-# Convert TriggerRecord to dictionary payload for API responses
 def _trigger_record_to_payload(record: TriggerRecord) -> Dict[str, Any]:
     return {
         "id": record.id,
@@ -117,7 +140,6 @@ def _trigger_record_to_payload(record: TriggerRecord) -> Dict[str, Any]:
     }
 
 
-# Create a new trigger for the specified execution agent
 def _create_trigger_tool(
     *,
     agent_name: str,
@@ -163,7 +185,6 @@ def _create_trigger_tool(
     }
 
 
-# Update or pause an existing trigger owned by this execution agent
 def _update_trigger_tool(
     *,
     agent_name: str,
@@ -214,7 +235,6 @@ def _update_trigger_tool(
     }
 
 
-# List all triggers belonging to this execution agent
 def _list_triggers_tool(*, agent_name: str) -> Dict[str, Any]:
     try:
         records = _TRIGGER_SERVICE.list_triggers(agent_name=agent_name)
@@ -232,6 +252,42 @@ def _list_triggers_tool(*, agent_name: str) -> Dict[str, Any]:
     return {"triggers": [_trigger_record_to_payload(record) for record in records]}
 
 
+
+def _enable_google_calendar_starting_soon_trigger_tool(
+    *,
+    agent_name: str,
+    calendarId: str = "primary",
+    minutes_before_start: int = 10,
+) -> Dict[str, Any]:
+    user_id = get_active_calendar_user_id()
+    if not user_id:
+        return {"error": "Google Calendar not connected. User must connect their calendar first."}
+
+    arguments = {
+        "calendarId": calendarId,
+        "minutes_before_start": minutes_before_start,
+    }
+
+    try:
+        result = enable_calendar_trigger(
+            "GOOGLECALENDAR_EVENT_STARTING_SOON_TRIGGER",
+            user_id,
+            arguments=arguments,
+            metadata={"agent_name": agent_name},
+        )
+        _LOG_STORE.record_action(
+            agent_name,
+            description=f"enableCalendarStartingSoonTrigger succeeded | calendarId={calendarId}",
+        )
+        return result
+    except Exception as exc:
+        _LOG_STORE.record_action(
+            agent_name,
+            description=f"enableCalendarStartingSoonTrigger failed | error={exc}",
+        )
+        return {"error": str(exc)}
+
+
 # Return trigger tool callables bound to a specific agent
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
     """Return trigger tool callables bound to a specific agent."""
@@ -240,6 +296,9 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
         "createTrigger": partial(_create_trigger_tool, agent_name=agent_name),
         "updateTrigger": partial(_update_trigger_tool, agent_name=agent_name),
         "listTriggers": partial(_list_triggers_tool, agent_name=agent_name),
+        "enableCalendarStartingSoonTrigger": partial(
+            _enable_google_calendar_starting_soon_trigger_tool, agent_name=agent_name
+        ),
     }
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import asynccontextmanager # Added missing import
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -10,12 +11,42 @@ from fastapi.responses import JSONResponse
 from .config import get_settings
 from .logging_config import configure_logging, logger
 from .routes import api_router
-from .services import get_important_email_watcher, get_trigger_scheduler
-from .services import get_important_issue_watcher
-from .services import get_calendar_watcher
+from .services import (
+    get_calendar_watcher,
+    get_important_email_watcher,
+    get_important_issue_watcher,
+    get_trigger_scheduler,
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manages the startup and shutdown lifecycle of background services.
+    """
+    logger.info("Starting background services...")
+    
+    scheduler = get_trigger_scheduler()
+    email_watcher = get_important_email_watcher()
+    jira_watcher = get_important_issue_watcher()
+    calendar_watcher = get_calendar_watcher()
+
+    await scheduler.start()
+    await email_watcher.start()
+    await jira_watcher.start()
+    await calendar_watcher.start()
+
+    logger.info("All services are active.")
+
+    yield  
+
+    logger.info("Shutting down background services...")
+    
+    await scheduler.stop()
+    await email_watcher.stop()
+    await jira_watcher.stop()
+    #await calendar_watcher.stop() 
 
 
-# Register global exception handlers for consistent error responses across the API
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -53,6 +84,7 @@ app = FastAPI(
     version=_settings.app_version,
     docs_url=_settings.resolved_docs_url,
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -65,32 +97,5 @@ app.add_middleware(
 
 register_exception_handlers(app)
 app.include_router(api_router)
-
-
-@app.on_event("startup")
-# Initialize background services (trigger scheduler and email watcher) when the app starts
-async def _start_trigger_scheduler() -> None:
-    scheduler = get_trigger_scheduler()
-    await scheduler.start()
-    watcher = get_important_email_watcher()
-    await watcher.start()
-    jira_watcher = get_important_issue_watcher()
-    await jira_watcher.start()
-    calendar_watcher = get_calendar_watcher()
-    await calendar_watcher.start()
-
-
-@app.on_event("shutdown")
-# Gracefully shutdown background services when the app stops
-async def _stop_trigger_scheduler() -> None:
-    scheduler = get_trigger_scheduler()
-    await scheduler.stop()
-    watcher = get_important_email_watcher()
-    await watcher.stop()
-    jira_watcher = get_important_issue_watcher()
-    await jira_watcher.stop()
-    calendar_watcher = get_calendar_watcher()
-    await calendar_watcher.stop()
-
 
 __all__ = ["app"]
