@@ -482,7 +482,7 @@ def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -
     )
     return result
 
-def google_calendar_create_event(
+def googlecalendar_create_event(
     start_datetime: str,
     calendar_id: str = "primary",
     summary: Optional[str] = None,
@@ -534,7 +534,7 @@ def google_calendar_create_event(
     return _execute("GOOGLECALENDAR_CREATE_EVENT", composio_user_id, arguments)
 
 
-def google_calendar_quick_add(
+def googlecalendar_quick_add(
     text: str,
     calendar_id: str = "primary",
     send_updates: Optional[str] = "none",
@@ -554,7 +554,7 @@ def google_calendar_quick_add(
     return _execute("GOOGLECALENDAR_QUICK_ADD", composio_user_id, arguments)
 
 
-def google_calendar_events_get(
+def googlecalendar_events_get(
     event_id: str,
     calendar_id: str = "primary",
     max_attendees: Optional[int] = None,
@@ -576,7 +576,7 @@ def google_calendar_events_get(
     return _execute("GOOGLECALENDAR_EVENTS_GET", composio_user_id, arguments)
 
 
-def google_calendar_find_event(
+def googlecalendar_find_event(
     calendar_id: str = "primary",
     query: Optional[str] = None,
     timeMin: Optional[str] = None,
