@@ -51,7 +51,7 @@ class ImportantIssueWatcher:
             if self._task and not self._task.done(): return
             self._running = True
             self._task = asyncio.create_task(self._run(), name="jira-ai-watcher")
-            logger.info("AI-Enhanced Jira watcher started")
+            logger.info("Jira watcher started")
 
     async def stop(self) -> None:
         async with self._lock:

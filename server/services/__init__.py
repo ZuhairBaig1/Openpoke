@@ -31,6 +31,20 @@ from .jira import (
     get_important_issue_watcher,
     jira_disconnect_account,
 )
+
+from .calendar import (
+    initiate_calendar_connect,
+    fetch_calendar_status,
+    disconnect_calendar_account,
+    normalize_trigger_response,
+    process_event,
+    dispatch_alert,
+    CalendarWatcher,
+    get_calendar_watcher,
+    execute_calendar_tool,
+    enable_calendar_trigger,
+    
+)
 from .trigger_scheduler import get_trigger_scheduler
 from .triggers import get_trigger_service
 from .timezone_store import TimezoneStore, get_timezone_store
@@ -60,4 +74,8 @@ __all__ = [
     "get_trigger_service",
     "TimezoneStore",
     "get_timezone_store",
+    "calendar_disconnect_account",
+    "calendar_fetch_status",
+    "calendar_initiate_connect",
+    "process_event",
 ]

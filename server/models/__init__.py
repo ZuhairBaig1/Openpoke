@@ -2,6 +2,7 @@ from .chat import ChatHistoryClearResponse, ChatHistoryResponse, ChatMessage, Ch
 from .gmail import GmailConnectPayload, GmailDisconnectPayload, GmailStatusPayload
 from .jira import JiraConnectPayload, JiraDisconnectPayload, JiraStatusPayload
 from .meta import HealthResponse, RootResponse, SetTimezoneRequest, SetTimezoneResponse
+from .calendar import CalendarConnectPayload, CalendarDisconnectPayload, CalendarStatusPayload
 
 __all__ = [
     "ChatMessage",
@@ -18,4 +19,7 @@ __all__ = [
     "RootResponse",
     "SetTimezoneRequest",
     "SetTimezoneResponse",
+    "CalendarConnectPayload",
+    "CalendarDisconnectPayload",
+    "CalendarStatusPayload",
 ]

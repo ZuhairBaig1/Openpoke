@@ -1,22 +1,24 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
-from datetime import datetime
-from uuid import UUID
-
 import uuid
 import os
 import threading
+from typing import Any, Dict, Optional, TYPE_CHECKING
+from datetime import datetime
+from uuid import UUID
 
 from fastapi import status
 from fastapi.responses import JSONResponse
+from composio import ComposioToolSet, App  # Added for Triggers
 
 from ...config import Settings, get_settings
 from ...logging_config import logger
 from ...models import CalendarConnectPayload, CalendarDisconnectPayload, CalendarStatusPayload
 from ...utils import error_response
 
+if TYPE_CHECKING:
+    from ...agents.interaction_agent.runtime import InteractionAgentRuntime
 
 _CLIENT_LOCK = threading.Lock()
 _CLIENT: Optional[Any] = None
@@ -49,6 +51,12 @@ def _calendar_import_client():
     return Composio
 
 
+def _resolve_interaction_runtime() -> "InteractionAgentRuntime":
+    """Lazy import to avoid circular dependencies."""
+    from ...agents.interaction_agent.runtime import InteractionAgentRuntime
+    return InteractionAgentRuntime()
+
+
 # Get or create a singleton Composio client instance with thread-safe initialization
 def _get_composio_client(settings: Optional[Settings] = None):
     global _CLIENT
@@ -69,6 +77,75 @@ def _get_composio_client(settings: Optional[Settings] = None):
                     ) from exc
                 _CLIENT = Composio()
     return _CLIENT
+
+
+# --- ADDED: Generic Tool Executor (Required by _fetch_calendar_profile) ---
+def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> Any:
+    sanitized_user_id = _normalized(user_id)
+    if not sanitized_user_id:
+        return {"error": "Missing user_id"}
+
+    try:
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key, entity_id=sanitized_user_id)
+        
+        result = toolset.execute_action(
+            action=action_name,
+            params=arguments
+        )
+        return result
+    except Exception as exc:
+        logger.error(f"Tool execution failed: {exc}")
+        return {"error": str(exc)}
+
+
+# --- ADDED: Trigger Enabler Function ---
+def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict) -> Dict[str, Any]:
+    """
+    Enables a specific trigger (e.g., RSVP changes) for a user.
+    """
+    sanitized_user_id = _normalized(user_id)
+    if not sanitized_user_id:
+        return {"status": "FAILED", "error": "Missing user_id"}
+
+    try:
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        
+        toolset = ComposioToolSet(api_key=api_key, entity_id=sanitized_user_id)
+
+        accounts = toolset.get_connected_accounts()
+
+        google_account = next(
+            (
+                acc for acc in accounts 
+                if (
+                    "googlecalendar" in str(getattr(acc, "appName", "")).lower() 
+                    or "googlecalendar" in str(getattr(acc, "appUniqueId", "")).lower()
+                )
+            ), 
+            None
+        )
+
+        if not google_account:
+            return {"status": "FAILED", "error": "Google Calendar account not found"}
+
+
+        # Enable the Trigger
+        result = toolset.client.triggers.enable(
+            name=trigger_name,
+            connected_account_id=google_account.id,
+            config=arguments
+        )
+
+        return result
+    except Exception as exc:
+        logger.exception(
+            "Failed to enable calendar trigger",
+            extra={"trigger": trigger_name, "user_id": sanitized_user_id, "error": str(exc)}
+        )
+        return {"status": "FAILED", "error": str(exc)}
 
 
 def _extract_email(obj: Any) -> Optional[str]:
@@ -150,7 +227,9 @@ def _get_cached_profile(user_id: Optional[str]) -> Optional[Dict[str, Any]]:
 def _clear_cached_profile(user_id: Optional[str] = None) -> None:
     with _PROFILE_CACHE_LOCK:
         if user_id:
-            _PROFILE_CACHE.pop(_normalized(user_id), None)
+            key = _normalized(user_id)
+            if key:
+                _PROFILE_CACHE.pop(key, None)
         else:
             _PROFILE_CACHE.clear()
 
@@ -204,7 +283,6 @@ def _fetch_calendar_profile_from_composio(
     return None
 
 
-
 # Start Gmail OAuth connection process and return redirect URL
 def initiate_calendar_connect(payload: CalendarConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = (
@@ -247,7 +325,6 @@ def initiate_calendar_connect(payload: CalendarConnectPayload, settings: Setting
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         )
-
 
 
 # Check Calendar connection status and retrieve user account information
@@ -356,6 +433,7 @@ def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
             detail=str(exc),
         )
 
+
 def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONResponse:
     connection_id = _normalized(payload.connection_id) or _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
@@ -393,9 +471,13 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
             removed_ids.append(sanitized_id)
             if connection is not None:
                 if hasattr(connection, "user_id"):
-                    affected_user_ids.add(_normalized(getattr(connection, "user_id", None)))
+                    uid = _normalized(getattr(connection, "user_id", None))
+                    if uid:
+                        affected_user_ids.add(uid)
                 elif isinstance(connection, dict):
-                    affected_user_ids.add(_normalized(connection.get("user_id")))
+                    uid = _normalized(connection.get("user_id"))
+                    if uid:
+                        affected_user_ids.add(uid)
         except Exception as exc:  # pragma: no cover
             logger.exception(
                 "Failed to remove Google Calendar connection",
@@ -437,7 +519,9 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
                     candidate_user_id = entry.get("user_id")
                 if candidate:
                     if candidate_user_id:
-                        affected_user_ids.add(_normalized(candidate_user_id))
+                        uid = _normalized(candidate_user_id)
+                        if uid:
+                            affected_user_ids.add(uid)
                     _delete_connection(candidate)
 
     if user_id:
@@ -446,7 +530,7 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
     for uid in list(affected_user_ids):
         if uid:
             _clear_cached_profile(uid)
-            if get_active_google_calendar_user_id() == uid:
+            if get_active_calendar_user_id() == uid:
                 _set_active_calendar_user_id(None)
 
     if errors and not removed_ids:
@@ -456,18 +540,18 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
             detail="; ".join(errors),
         )
 
-    payload = {
+    return_payload = {
         "ok": True,
         "disconnected": bool(removed_ids),
         "removed_connection_ids": removed_ids,
     }
     if not removed_ids:
-        payload["message"] = "No Google Calendar connection found"
+        return_payload["message"] = "No Google Calendar connection found"
 
     if errors:
-        payload["warnings"] = errors
+        return_payload["warnings"] = errors
 
-    return JSONResponse(payload)
+    return JSONResponse(return_payload)
 
 
 def _normalize_tool_response(result: Any) -> Dict[str, Any]:
@@ -498,77 +582,38 @@ def _normalize_tool_response(result: Any) -> Dict[str, Any]:
     return payload_dict
 
 
-def execute_calendar_tool(
-    tool_name: str,
-    composio_user_id: str,
-    *,
-    arguments: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    prepared_arguments: Dict[str, Any] = {}
-    if isinstance(arguments, dict):
-        for key, value in arguments.items():
-            if value is not None:
-                prepared_arguments[key] = value
+def _sanitize_dict_values(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: _sanitize_dict_values(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_dict_values(i) for i in data]
+    elif isinstance(data, (datetime, UUID)):
+        return str(data)
+    else:
+        return data
 
-    try:
-        client = _get_composio_client()
-        result = client.client.tools.execute(
-            tool_name,
-            user_id=composio_user_id,
-            arguments=prepared_arguments,
-        )
-        return _normalize_tool_response(result)
-    except Exception as exc:
-        logger.exception(
-            "calendar tool execution failed",
-            extra={"tool": tool_name, "user_id": composio_user_id},
-        )
-        raise RuntimeError(f"{tool_name} invocation failed: {exc}") from exc
 
-def enable_calendar_trigger(trigger_name: str, composio_user_id: str, *, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    prepared_arguments: Dict[str, Any] = {}
-    if isinstance(arguments, dict):
-        for key, value in arguments.items():
-            if value is not None:
-                prepared_arguments[key] = value
-    try:
-        client = _get_composio_client()
-        result = client.client.triggers.enable(
-            trigger_name,
-            user_id=composio_user_id,
-            arguments=prepared_arguments,
-        )
-        return _normalize_trigger_response(result)
-    except Exception as exc:
-        logger.exception(
-            "calendar trigger subscription failed",
-            extra={"trigger": trigger_name, "user_id": composio_user_id},
-        )
-        raise RuntimeError(f"Failed to enable {trigger_name}: {exc}")
-
-def _normalize_trigger_response(result: Any) -> Dict[str, Any]:
+def normalize_trigger_response(result: Any) -> Dict[str, Any]:
+    if isinstance(result, dict):
+        if "payload" in result:
+            result = result["payload"]
+        elif "data" in result:
+            result = result["data"]
+    else:
+        if hasattr(result, "payload") and result.payload is not None:
+            result = result.payload
+        elif hasattr(result, "data") and result.data is not None:
+            result = result.data
 
     payload_dict: Optional[Dict[str, Any]] = None
-
-    if hasattr(result, "payload") and isinstance(result.payload, (dict, object)):
-        result = result.payload
-    elif hasattr(result, "data") and isinstance(result.data, (dict, object)):
-        result = result.data
-
+    
     try:
         if hasattr(result, "model_dump"):
-            payload_dict = result.model_dump()
+            payload_dict = result.model_dump()  # type: ignore
         elif hasattr(result, "dict"):
-            payload_dict = result.dict()
+            payload_dict = result.dict()  # type: ignore
     except Exception:
         payload_dict = None
-
-    if payload_dict is None:
-        try:
-            if hasattr(result, "model_dump_json"):
-                payload_dict = json.loads(result.model_dump_json())
-        except Exception:
-            payload_dict = None
 
     if payload_dict is None:
         if isinstance(result, dict):
@@ -579,20 +624,35 @@ def _normalize_trigger_response(result: Any) -> Dict[str, Any]:
             except json.JSONDecodeError:
                 payload_dict = {"raw_content": result}
         else:
-            if isinstance(result, list):
-                payload_dict = {"items": result}
-            else:
-                payload_dict = {"repr": str(result)}
+            payload_dict = {"items": result} if isinstance(result, list) else {"repr": str(result)}
+
     return _sanitize_dict_values(payload_dict)
 
 
-def _sanitize_dict_values(data: Any) -> Any:
+async def process_event(payload: Dict[str, Any]) -> None:
+    data = normalize_trigger_response(payload)
+    
+    event_title = data.get("summary") or data.get("event_summary") or "Untitled Event"
+    status = data.get("responseStatus") or data.get("response_status")
+    attendee = data.get("attendee_email") or data.get("email") or "Unknown Attendee"
 
-    if isinstance(data, dict):
-        return {k: _sanitize_dict_values(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [_sanitize_dict_values(i) for i in data]
-    elif isinstance(data, (datetime, UUID)):
-        return str(data)
-    else:
-        return data
+    logger.debug(f"Calendar Event Received: {event_title} | Status: {status}")
+
+    await dispatch_alert(event_title, attendee, status)
+
+
+async def dispatch_alert(title: str, person: str, status: Optional[str] = None) -> None:
+    runtime = _resolve_interaction_runtime()
+    
+    alert_text = (
+        f"**Calendar Alert: RSVP Change**\n"
+        f"Status of event **{title}** has changed to **{status}** by **{person}**\n"
+        f"---\n"
+        f"Source: Google Calendar"
+    )
+    await runtime.handle_agent_message(alert_text)
+
+
+
+
+    

@@ -4,7 +4,7 @@ import json
 from typing import Any, Callable, Dict, List, Optional
 
 from server.services.execution import get_execution_agent_logs
-#from server.services.calendar import execute_calendar_tool, get_active_calendar_user_id
+from server.services.calendar.client import execute_calendar_tool, get_active_calendar_user_id
 
 _CALENDAR_AGENT_NAME = "calendar-execution-agent"
 
