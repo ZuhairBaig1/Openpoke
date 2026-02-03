@@ -48,10 +48,12 @@ _SYSTEM_PROMPT = (
     "You review incoming Gmail messages and decide whether they warrant an immediate proactive "
     "notification to the user. Only mark an email as important if it materially affects the "
     "user's plans, requires a prompt decision or action, is a security-sensitive OTP or login "
-    "notice, or contains high-priority updates (e.g. interviews, meeting changes). Ignore "
-    "order confirmations, routine marketing, newsletters, generic receipts, and low-impact "
-    "status notifications. When important, craft a brief summary that will be forwarded to the "
-    "user describing what happened and why it matters."
+    "notice, or contains high-priority updates (e.g. interviews). "
+    "Surface new event invitations immediately as they require a decision. "
+    "However, specifically IGNORE event state changes (RSVP updates, location changes, meeting updates) "
+    "and reminders about events starting soon, as these are handled by other specialized watchers. "
+    "Also ignore order confirmations, newsletters, generic receipts, and low-impact status "
+    "notifications. When important, craft a brief summary explaining why it matters."
 )
 
 
