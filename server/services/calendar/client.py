@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import status
 from fastapi.responses import JSONResponse
-from composio import ComposioToolSet, App  # Added for Triggers
+from composio import ComposioToolSet
 
 from ...config import Settings, get_settings
 from ...logging_config import logger
@@ -51,12 +51,6 @@ def _calendar_import_client():
     return Composio
 
 
-def _resolve_interaction_runtime() -> "InteractionAgentRuntime":
-    """Lazy import to avoid circular dependencies."""
-    from ...agents.interaction_agent.runtime import InteractionAgentRuntime
-    return InteractionAgentRuntime()
-
-
 # Get or create a singleton Composio client instance with thread-safe initialization
 def _get_composio_client(settings: Optional[Settings] = None):
     global _CLIENT
@@ -94,7 +88,7 @@ def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> An
             action=action_name,
             params=arguments
         )
-        return result
+        return _normalize_tool_response(result)
     except Exception as exc:
         logger.error(f"Tool execution failed: {exc}")
         return {"error": str(exc)}
@@ -554,44 +548,54 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
     return JSONResponse(return_payload)
 
 
-def _normalize_tool_response(result: Any) -> Dict[str, Any]:
-    payload_dict: Optional[Dict[str, Any]] = None
-    try:
-        if hasattr(result, "model_dump"):
-            payload_dict = result.model_dump()  # type: ignore[assignment]
-        elif hasattr(result, "dict"):
-            payload_dict = result.dict()  # type: ignore[assignment]
-    except Exception:
-        payload_dict = None
-
-    if payload_dict is None:
-        try:
-            if hasattr(result, "model_dump_json"):
-                payload_dict = json.loads(result.model_dump_json())
-        except Exception:
-            payload_dict = None
-
-    if payload_dict is None:
-        if isinstance(result, dict):
-            payload_dict = result
-        elif isinstance(result, list):
-            payload_dict = {"items": result}
-        else:
-            payload_dict = {"repr": str(result)}
-
-    return payload_dict
-
-
 def _sanitize_dict_values(data: Any) -> Any:
+    """Recursively converts non-JSON serializable objects into strings."""
     if isinstance(data, dict):
         return {k: _sanitize_dict_values(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [_sanitize_dict_values(i) for i in data]
     elif isinstance(data, (datetime, UUID)):
         return str(data)
-    else:
-        return data
+    return data
 
+def _base_normalize(result: Any) -> Dict[str, Any]:
+
+    if result is None:
+        return {}
+
+    payload_dict: Optional[Dict[str, Any]] = None
+
+    for method in ("model_dump", "dict"):
+        if hasattr(result, method):
+            try:
+                payload_dict = getattr(result, method)()
+                break
+            except Exception:
+                continue
+
+    if payload_dict is None and hasattr(result, "model_dump_json"):
+        try:
+            payload_dict = json.loads(result.model_dump_json())
+        except Exception:
+            pass
+
+    if payload_dict is None:
+        if isinstance(result, dict):
+            payload_dict = result
+        elif isinstance(result, list):
+            payload_dict = {"items": result}
+        elif isinstance(result, str):
+            try:
+                payload_dict = json.loads(result)
+            except json.JSONDecodeError:
+                payload_dict = {"raw_content": result}
+        else:
+            payload_dict = {"repr": str(result)}
+
+    return _sanitize_dict_values(payload_dict)
+
+def _normalize_tool_response(result: Any) -> Dict[str, Any]:
+    return _base_normalize(result)
 
 def normalize_trigger_response(result: Any) -> Dict[str, Any]:
     if isinstance(result, dict):
@@ -600,57 +604,16 @@ def normalize_trigger_response(result: Any) -> Dict[str, Any]:
         elif "data" in result:
             result = result["data"]
     else:
-        if hasattr(result, "payload") and result.payload is not None:
-            result = result.payload
-        elif hasattr(result, "data") and result.data is not None:
-            result = result.data
-
-    payload_dict: Optional[Dict[str, Any]] = None
-    
-    try:
-        if hasattr(result, "model_dump"):
-            payload_dict = result.model_dump()  # type: ignore
-        elif hasattr(result, "dict"):
-            payload_dict = result.dict()  # type: ignore
-    except Exception:
-        payload_dict = None
-
-    if payload_dict is None:
-        if isinstance(result, dict):
-            payload_dict = result
-        elif isinstance(result, str):
-            try:
-                payload_dict = json.loads(result)
-            except json.JSONDecodeError:
-                payload_dict = {"raw_content": result}
-        else:
-            payload_dict = {"items": result} if isinstance(result, list) else {"repr": str(result)}
-
-    return _sanitize_dict_values(payload_dict)
+        for attr in ("payload", "data"):
+            val = getattr(result, attr, None)
+            if val is not None:
+                result = val
+                break
+                
+    return _base_normalize(result)
 
 
-async def process_event(payload: Dict[str, Any]) -> None:
-    data = normalize_trigger_response(payload)
-    
-    event_title = data.get("summary") or data.get("event_summary") or "Untitled Event"
-    status = data.get("responseStatus") or data.get("response_status")
-    attendee = data.get("attendee_email") or data.get("email") or "Unknown Attendee"
 
-    logger.debug(f"Calendar Event Received: {event_title} | Status: {status}")
-
-    await dispatch_alert(event_title, attendee, status)
-
-
-async def dispatch_alert(title: str, person: str, status: Optional[str] = None) -> None:
-    runtime = _resolve_interaction_runtime()
-    
-    alert_text = (
-        f"**Calendar Alert: RSVP Change**\n"
-        f"Status of event **{title}** has changed to **{status}** by **{person}**\n"
-        f"---\n"
-        f"Source: Google Calendar"
-    )
-    await runtime.handle_agent_message(alert_text)
 
 
 
