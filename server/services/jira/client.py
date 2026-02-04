@@ -59,18 +59,18 @@ def _get_composio_client(settings: Optional[Settings] = None):
                 _CLIENT = Composio()
     return _CLIENT
 
-def _extract_jira_details(obj: Any) -> Dict[str, Optional[str]]:
+def _extract_jira_details(obj: Any) -> Dict[str, Any]:
     """Extract identity prioritizing accountId over email."""
-    details = {"email": None, "accountId": None, "displayName": None}
+    details: Dict[str, Any] = {"email": None, "accountId": None, "displayName": None}
     if obj is None:
         return details
 
     details["accountId"] = (
-        getattr(obj, "accountId", None) or 
+        getattr(obj, "accountId", None) or
         (obj.get("accountId") if isinstance(obj, dict) else None)
     )
     details["displayName"] = (
-        getattr(obj, "displayName", None) or 
+        getattr(obj, "displayName", None) or
         (obj.get("displayName") if isinstance(obj, dict) else None)
     )
 
@@ -158,17 +158,17 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         
 
     try:
-
-        client = _get_composio_client(settings)
-        req = client.connected_accounts.initiate(
-            user_id=user_id,
-            auth_config_id=auth_config_id,
-            config={
-                "authScheme": "OAUTH2",
-                "val": {
-                    "status": "INITIALIZING",
-                    "subdomain": subdomain,
-                }
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key, entity_id=user_id)
+        
+        req = toolset.initiate_connection(
+            app="jira",
+            auth_config={"id": auth_config_id},
+            auth_scheme="OAUTH2",
+            connected_account_params={
+                "subdomain": subdomain,
             }
         )
 
@@ -178,8 +178,8 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
                 "ok": True,
                 "already_connected": False,
                 "user_id": user_id,
-                "connection_request_id": getattr(req, "id", None),
-                "redirect_url": getattr(req, "redirect_url", None),
+                "connection_request_id": getattr(req, "connectedAccountId", None) or getattr(req, "id", None),
+                "redirect_url": getattr(req, "redirectUrl", None) or getattr(req, "redirect_url", None),
                 "status": "INITIALIZING"
                 }
             )
@@ -194,23 +194,33 @@ def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
     try:
-        client = _get_composio_client()
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key)
+        
         account: Any = None
         
         if connection_request_id:
             try:
-                account = client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
+                account = toolset.get_connected_account(id=connection_request_id)
             except Exception as exc:
                 logger.warning("Wait for connection failed, attempting direct fetch", extra={"id": connection_request_id})
-                try: 
-                    account = client.connected_accounts.get(connection_request_id)
-                except Exception as inner_exc:
-                    logger.error("Direct fetch also failed", extra={"id": connection_request_id, "error": str(inner_exc)})
+                account = None
 
         if account is None and user_id:
-            items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"], statuses=["ACTIVE"])
-            data = getattr(items, "data", None) or (items.get("data") if isinstance(items, dict) else None)
-            if data: account = data[0]
+            try:
+                entity = toolset.client.get_entity(id=user_id)
+                connections = entity.get_connections()
+                # Find the first active Jira connection
+                for conn in connections:
+                    if (getattr(conn, "appName", "").upper() == "JIRA" or
+                        getattr(conn, "appUniqueId", "").upper() == "JIRA") and \
+                       getattr(conn, "status", "").upper() == "ACTIVE":
+                        account = conn
+                        break
+            except Exception:
+                account = None
 
         status_value = "UNKNOWN"
         connected = False
@@ -218,7 +228,8 @@ def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
         details = {"email": None, "accountId": None, "displayName": None}
 
         if account:
-            status_value = getattr(account, "status", None) or (account.get("status") if isinstance(account, dict) else "UNKNOWN")
+            raw_status = getattr(account, "status", None) or (account.get("status") if isinstance(account, dict) else None)
+            status_value = str(raw_status or "UNKNOWN")
             connected = status_value.upper() in {"CONNECTED", "ACTIVE", "SUCCESSFUL"}
             details = _extract_jira_details(account)
 
@@ -262,17 +273,19 @@ def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
 
     elif user_id:
         try:
-            items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"])
-            data = getattr(items, "data", [])
-            for entry in data:
-                cid = getattr(entry, "id", None)
-                if cid:
-                    try:
-                        client.connected_accounts.delete(cid)
-                        removed_ids.append(cid)
-                    except Exception as exc:
-                        logger.error("Failed to delete Jira connection during bulk removal", 
-                                     extra={"connection_id": cid, "user_id": user_id, "error": str(exc)})
+            entity = client.get_entity(id=user_id)
+            connections = entity.get_connections()
+            for conn in connections:
+                if getattr(conn, "appName", "").upper() == "JIRA" or \
+                   getattr(conn, "appUniqueId", "").upper() == "JIRA":
+                    cid = getattr(conn, "id", None)
+                    if cid:
+                        try:
+                            client.connected_accounts.delete(cid)
+                            removed_ids.append(cid)
+                        except Exception as exc:
+                            logger.error("Failed to delete Jira connection during bulk removal",
+                                         extra={"connection_id": cid, "user_id": user_id, "error": str(exc)})
         except Exception as exc:
             logger.error("Failed to list Jira connections for disconnection", extra={"user_id": user_id, "error": str(exc)})
 
@@ -283,17 +296,48 @@ def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
 
     return JSONResponse({"ok": True, "disconnected": bool(removed_ids), "removed_connection_ids": removed_ids})
 
+
+def _normalize_jira_response(result: Any) -> Dict[str, Any]:
+    payload_dict: Optional[Dict[str, Any]] = None
+    try:
+        if hasattr(result, "model_dump"):
+            payload_dict = result.model_dump()  # type: ignore[assignment]
+        elif hasattr(result, "dict"):
+            payload_dict = result.dict()  # type: ignore[assignment]
+    except Exception:
+        payload_dict = None
+
+    if payload_dict is None:
+        try:
+            if hasattr(result, "model_dump_json"):
+                payload_dict = json.loads(result.model_dump_json())
+        except Exception:
+            payload_dict = None
+
+    if payload_dict is None:
+        if isinstance(result, dict):
+            payload_dict = result
+        elif isinstance(result, list):
+            payload_dict = {"items": result}
+        else:
+            payload_dict = {"repr": str(result)}
+
+    return payload_dict
+
 def execute_jira_tool(tool_name: str, composio_user_id: str, *, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     prepared_args = {k: v for k, v in (arguments or {}).items() if v is not None}
     try:
-        client = _get_composio_client()
-        logger.info(f"BEFORE CALLING client.client.tools.execute: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={prepared_args}, in execute_jira_tool inside jira client.py")
-        result = client.client.tools.execute(tool_name, user_id=composio_user_id, arguments=prepared_args)
-        if hasattr(result, "model_dump"):
-            logger.info(f"AFTER CALLING client.client.tools.execute: WILL RETURN {result.model_dump()}, in execute_jira_tool inside jira client.py")
-            return result.model_dump()
-        logger.info(f"AFTER CALLING client.client.tools.execute: WILL RETURN {result if isinstance(result, dict) else {"repr": str(result)}}, in execute_jira_tool inside jira client.py")
-        return result if isinstance(result, dict) else {"repr": str(result)}
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key, entity_id=composio_user_id)
+        
+        logger.info(f"BEFORE CALLING toolset.execute_action: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={prepared_args}")
+        result = toolset.execute_action(action=tool_name, params=prepared_args)
+        
+        final_res = _normalize_jira_response(result)
+        logger.info(f"AFTER CALLING toolset.execute_action: WILL RETURN {final_res}")
+        return final_res
     except Exception as exc:
         logger.exception("Jira tool execution failed", extra={"tool": tool_name, "user_id": composio_user_id})
         raise RuntimeError(f"{tool_name} failed: {exc}") from exc

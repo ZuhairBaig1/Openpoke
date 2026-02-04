@@ -32,8 +32,8 @@ async def lifespan(app: FastAPI):
 
     await scheduler.start()
     await email_watcher.start()
-    await jira_watcher.start()
-    await calendar_watcher.start()
+    #await jira_watcher.start()
+    
 
     logger.info("All services are active.")
 
@@ -44,7 +44,6 @@ async def lifespan(app: FastAPI):
     await scheduler.stop()
     await email_watcher.stop()
     await jira_watcher.stop()
-    #await calendar_watcher.stop() 
 
 
 def register_exception_handlers(app: FastAPI) -> None:

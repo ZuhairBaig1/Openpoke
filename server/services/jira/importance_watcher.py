@@ -79,7 +79,7 @@ class ImportantIssueWatcher:
         
         try:
             raw_result = execute_jira_tool(
-                "JIRA_SEARCH_ISSUES_USING_JQL", 
+                "JIRA_SEARCH_FOR_ISSUES_USING_JQL_GET", 
                 composio_user_id, 
                 arguments={"jql": jql, "maxResults": DEFAULT_MAX_RESULTS}
             )

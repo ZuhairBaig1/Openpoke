@@ -278,7 +278,7 @@ def _fetch_calendar_profile_from_composio(
 
 
 # Start Gmail OAuth connection process and return redirect URL
-def initiate_calendar_connect(payload: CalendarConnectPayload, settings: Settings) -> JSONResponse:
+async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = (
         payload.auth_config_id
         or settings.composio_googlecalendar_auth_config_id
@@ -298,17 +298,28 @@ def initiate_calendar_connect(payload: CalendarConnectPayload, settings: Setting
     _clear_cached_profile(user_id)
 
     try:
-        client = _get_composio_client(settings)
-        req = client.connected_accounts.initiate(
-            user_id=user_id,
-            auth_config_id=auth_config_id,
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key, entity_id=user_id)
+        
+        req = toolset.initiate_connection(
+            app="googlecalendar",
+            auth_config={"id": auth_config_id}
         )
+
+        async def start_calendar_watcher():
+            from server.services import get_calendar_watcher
+            calendar_watcher = get_calendar_watcher()
+            return await calendar_watcher.start()
+        
+        await start_calendar_watcher()
+        
         return JSONResponse(
             {
                 "ok": True,
-                "redirect_url": getattr(req, "redirect_url", None)
-                or getattr(req, "redirectUrl", None),
-                "connection_request_id": getattr(req, "id", None),
+                "redirect_url": getattr(req, "redirectUrl", None)
+                or getattr(req, "redirect_url", None),
+                "connection_request_id": getattr(req, "connectedAccountId", None) or getattr(req, "id", None),
                 "user_id": user_id,
             }
         )
@@ -333,30 +344,30 @@ def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
         )
 
     try:
-        client = _get_composio_client()
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key)
+        
         account: Any = None
 
         if connection_request_id:
             try:
-                account = client.connected_accounts.wait_for_connection(
-                    connection_request_id, timeout=2.0
-                )
+                account = toolset.get_connected_account(id=connection_request_id)
             except Exception:
-                try:
-                    account = client.connected_accounts.get(connection_request_id)
-                except Exception:
-                    account = None
+                account = None
 
         if account is None and user_id:
             try:
-                items = client.connected_accounts.list(
-                    user_ids=[user_id],
-                    toolkit_slugs=["GOOGLECALENDAR"],
-                    statuses=["ACTIVE"],
-                )
-                data = getattr(items, "data", None) or items.get("data")
-                if data:
-                    account = data[0]
+                entity = toolset.client.get_entity(id=user_id)
+                connections = entity.get_connections()
+                # Find the first active Calendar connection
+                for conn in connections:
+                    if (getattr(conn, "appName", "").upper() == "GOOGLECALENDAR" or
+                        getattr(conn, "appUniqueId", "").upper() == "GOOGLECALENDAR") and \
+                       getattr(conn, "status", "").upper() == "ACTIVE":
+                        account = conn
+                        break
             except Exception:
                 account = None
 
@@ -481,42 +492,32 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
 
     if connection_id:
         _delete_connection(connection_id)
-    else:
+    elif user_id:
         try:
-            items = client.connected_accounts.list(
-                user_ids=[user_id],
-                toolkit_slugs=["GOOGLECALENDAR"],
-            )
-            data = getattr(items, "data", None)
-            if data is None and isinstance(items, dict):
-                data = items.get("data")
-        except Exception as exc:  # pragma: no cover
-            logger.exception(
-                "Failed to list Google Calendar connections",
-                extra={"user_id": user_id},
-            )
+            entity = client.get_entity(id=user_id)
+            connections = entity.get_connections()
+            for conn in connections:
+                if getattr(conn, "appName", "").upper() == "GOOGLECALENDAR" or \
+                   getattr(conn, "appUniqueId", "").upper() == "GOOGLECALENDAR":
+                    cid = getattr(conn, "id", None)
+                    if cid:
+                        try:
+                            client.connected_accounts.delete(cid)
+                            removed_ids.append(cid)
+                            uid = _normalized(getattr(conn, "user_id", None))
+                            if uid:
+                                affected_user_ids.add(uid)
+                        except Exception as exc:
+                            logger.exception("Failed to remove Calendar connection", extra={"connection_id": cid})
+                            errors.append(str(exc))
+        except Exception as exc:
+            logger.exception("Failed to list Calendar connections", extra={"user_id": user_id})
             return error_response(
                 "Failed to disconnect Google Calendar",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(exc),
             )
 
-        if data:
-            for entry in data:
-                candidate = None
-                candidate_user_id = None
-                if hasattr(entry, "id"):
-                    candidate = getattr(entry, "id", None)
-                    candidate_user_id = getattr(entry, "user_id", None)
-                if candidate is None and isinstance(entry, dict):
-                    candidate = entry.get("id")
-                    candidate_user_id = entry.get("user_id")
-                if candidate:
-                    if candidate_user_id:
-                        uid = _normalized(candidate_user_id)
-                        if uid:
-                            affected_user_ids.add(uid)
-                    _delete_connection(candidate)
 
     if user_id:
         affected_user_ids.add(user_id)

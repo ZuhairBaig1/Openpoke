@@ -216,12 +216,20 @@ def initiate_connect(payload: GmailConnectPayload, settings: Settings) -> JSONRe
     _set_active_gmail_user_id(user_id)
     _clear_cached_profile(user_id)
     try:
-        client = _get_composio_client(settings)
-        req = client.connected_accounts.initiate(user_id=user_id, auth_config_id=auth_config_id)
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key, entity_id=user_id)
+        
+        req = toolset.initiate_connection(
+            app="gmail",
+            auth_config={"id": auth_config_id}
+        )
+        
         data = {
             "ok": True,
-            "redirect_url": getattr(req, "redirect_url", None) or getattr(req, "redirectUrl", None),
-            "connection_request_id": getattr(req, "id", None),
+            "redirect_url": getattr(req, "redirectUrl", None) or getattr(req, "redirect_url", None),
+            "connection_request_id": getattr(req, "connectedAccountId", None) or getattr(req, "id", None),
             "user_id": user_id,
         }
         return JSONResponse(data)
@@ -246,26 +254,31 @@ def fetch_status(payload: GmailStatusPayload) -> JSONResponse:
         )
 
     try:
-        client = _get_composio_client()
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key)
+        
         account: Any = None
         if connection_request_id:
             try:
-                account = client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
+                # In V3, connection_request_id returned by initiate_connection is often the connectedAccountId
+                account = toolset.get_connected_account(id=connection_request_id)
             except Exception:
-                try:
-                    account = client.connected_accounts.get(connection_request_id)
-                except Exception:
-                    account = None
+                account = None
+        
         if account is None and user_id:
             try:
-                items = client.connected_accounts.list(
-                    user_ids=[user_id], toolkit_slugs=["GMAIL"], statuses=["ACTIVE"]
-                )
-                data = getattr(items, "data", None)
-                if data is None and isinstance(items, dict):
-                    data = items.get("data")
-                if data:
-                    account = data[0]
+                client = _get_composio_client()
+                entity = client.get_entity(id=user_id)
+                connections = entity.get_connections()
+                # Find the first active Gmail connection
+                for conn in connections:
+                    if (getattr(conn, "appName", "").upper() == "GMAIL" or
+                        getattr(conn, "appUniqueId", "").upper() == "GMAIL") and \
+                       getattr(conn, "status", "").upper() == "ACTIVE":
+                        account = conn
+                        break
             except Exception:
                 account = None
         status_value = None
@@ -422,17 +435,17 @@ def disconnect_account(payload: GmailDisconnectPayload) -> JSONResponse:
             detail="; ".join(errors),
         )
 
-    payload = {
+    payloads = {
         "ok": True,
         "disconnected": bool(removed_ids),
         "removed_connection_ids": removed_ids,
     }
     if not removed_ids:
-        payload["message"] = "No Gmail connection found"
+        payloads["message"] = "No Gmail connection found"
 
     if errors:
-        payload["warnings"] = errors
-    return JSONResponse(payload)
+        payloads["warnings"] = errors
+    return JSONResponse(payloads)
 
 
 def _normalize_tool_response(result: Any) -> Dict[str, Any]:
@@ -479,11 +492,13 @@ def execute_gmail_tool(
     prepared_arguments.setdefault("user_id", "me")
 
     try:
-        client = _get_composio_client()
-        result = client.client.tools.execute(
-            tool_name,
-            user_id=composio_user_id,
-            arguments=prepared_arguments,
+        from composio import ComposioToolSet
+        settings = get_settings()
+        api_key = settings.composio_api_key
+        toolset = ComposioToolSet(api_key=api_key, entity_id=composio_user_id)
+        result = toolset.execute_action(
+            action=tool_name,
+            params=prepared_arguments,
         )
         return _normalize_tool_response(result)
     except Exception as exc:
