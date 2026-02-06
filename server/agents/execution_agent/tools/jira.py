@@ -477,63 +477,54 @@ _SCHEMAS: List[Dict[str, Any]] = [
     {
     "type": "function",
     "function": {
-        "name": "jira_search_issues_using_jql",
-        "description": "Search for Jira issues using JQL (Jira Query Language). Supports pagination and field filtering.",
+        "name": "jira_search_for_issues_using_jql_post",
+        "description": "Request model for enhanced JQL issue search via POST to /rest/api/3/search/jql. Supports eventual-consistency and pagination with nextPageToken. NOTE: This action is for Jira Cloud only.",
         "parameters": {
             "type": "object",
             "properties": {
                 "jql": {
                     "type": "string",
-                    "description": "The JQL query string to filter issues (e.g., 'project = \"DEV\" AND status = \"In Progress\"'). Required unless using next_page_token."
+                    "description": "The JQL (Jira Query Language) query string to use for the search. Must be bounded (e.g., 'project = KAN'). Provide either this 'jql' (for the first page) or 'nextPageToken'."
+                },
+                "nextPageToken": {
+                    "type": "string",
+                    "description": "Opaque token received from a previous response to continue pagination. Tokens expire quickly."
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "Maximum number of issues to return per page. Default is 50.",
-                    "default": 50
+                    "description": "The maximum number of issues to return per page."
                 },
                 "fields": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
-                    "description": "List of specific fields to retrieve for each issue (e.g., ['summary', 'status', 'assignee']). specific fields reduces response size."
-                },
-                "next_page_token": {
-                    "type": "string",
-                    "description": "The token to retrieve the next page of results. Use this if a previous response included a next_page_token."
+                    "description": "A list of fields to return for each issue (e.g., 'summary', 'status', 'assignee', '*navigable')."
                 },
                 "expand": {
                     "type": "string",
-                    "description": "Comma-separated list of entities to expand (e.g., 'renderedFields,names,schema,transitions,operations')."
-                },
-                "fields_by_keys": {
-                    "type": "boolean",
-                    "description": "Set to true to reference fields by their keys (e.g., 'customfield_10000') instead of IDs.",
-                    "default": False                                    
-                },
-                "fail_fast": {
-                    "type": "boolean",
-                    "description": "If true, the search fails immediately if there is a partial error.",
-                    "default": False
+                    "description": "A comma-separated list of entities to expand in the response (e.g., 'names', 'schema', 'transitions')."
                 },
                 "properties": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
-                    "description": "List of issue property keys (metadata) to retrieve."
+                    "description": "A list of issue property keys to return for each issue."
                 },
-                "reconcile_issues": {
+                "fields_by_keys": {
+                    "type": "boolean",
+                    "description": "If true, treats values in 'fields' as keys (e.g., 'customfield_10000')."
+                },
+                "reconcileIssues": {
                     "type": "array",
                     "items": {
                         "type": "integer"
                     },
-                    "description": "List of issue IDs to enable read-after-write reconciliation."
+                    "description": "List of issue IDs to reconcile for read-after-write consistency (maximum 50)."
                 }
             },
-            "required": [
-                "jql"
-            ],
+            "required": [],
             "additionalProperties": False
         }
     }
@@ -546,7 +537,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
         "parameters": {
             "type": "object",
             "properties": {
-                "issue_key": {
+                "issue_id_or_key": {
                     "type": "string",
                     "description": "The unique key (e.g., 'PROJ-123') or numeric ID (e.g., '10000') of the issue to retrieve."
                 },
@@ -580,7 +571,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
                 }
             },
             "required": [
-                "issue_key"
+                "issue_id_or_key"
             ],
             "additionalProperties": False
         }
@@ -635,18 +626,18 @@ _SCHEMAS: List[Dict[str, Any]] = [
         "parameters": {
             "type": "object",
             "properties": {
-                "issue_id_or_key": {
+                "issueIdOrKey": {
                     "type": "string",
                     "description": "The ID (e.g., '10000') or key (e.g., 'PROJ-123') of the Jira issue from which the comment will be deleted."
                 },
-                "comment_id": {
+                "id": {
                     "type": "string",
                     "description": "The unique identifier of the comment to be deleted (e.g., '10001')."
                 }
             },
             "required": [
-                "issue_id_or_key",
-                "comment_id"
+                "issueIdOrKey",
+                "id"
             ],
             "additionalProperties": False
         }
@@ -947,41 +938,49 @@ def jira_find_users(
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_find_users")
     return _execute("jira_find_users", uid, arguments)
 
-def jira_search_issues_using_jql(
-    jql: str,
-    max_results: int = 50,
-    fields: Optional[List[str]] = None,
+def jira_search_for_issues_using_jql_post(
+    jql: Optional[str] = None,
     next_page_token: Optional[str] = None,
+    max_results: Optional[int] = None,
+    fields: Optional[List[str]] = None,
     expand: Optional[str] = None,
-    fields_by_keys: bool = False,
-    fail_fast: bool = False,
     properties: Optional[List[str]] = None,
+    fields_by_keys: bool = False,
     reconcile_issues: Optional[List[int]] = None,
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     arguments: Dict[str, Any] = {
         "jql": jql,
+        "nextPageToken": next_page_token,
         "max_results": max_results,
         "fields": fields,
-        "next_page_token": next_page_token,
         "expand": expand,
-        "fields_by_keys": fields_by_keys,
-        "fail_fast": fail_fast,
         "properties": properties,
-        "reconcile_issues": reconcile_issues,
+        "fields_by_keys": fields_by_keys,
+        "reconcileIssues": reconcile_issues,
     }
     
+    arguments = {k: v for k, v in arguments.items() if v is not None}
+
+    logger.info(f"jira_search_for_issues_using_jql_post called. JQL provided: {bool(jql)}, Token provided: {bool(next_page_token)}")
     uid = get_active_jira_user_id()
-    if not uid: return [{"error": "Jira not connected. Please connect Jira in settings first."}]
+    if not uid:
+        return {"error": "Jira not connected. Please connect Jira in settings first."}
     
-    logger.info(f"Arguments for jira_search_issues_using_jql: {arguments}")
-    raw_result = _execute("JIRA_SEARCH_FOR_ISSUES_USING_JQL_GET", uid, arguments)
+    logger.info(f"Arguments for jira_search_for_issues_using_jql_post: {arguments}")
+    raw_result = _execute("JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", uid, arguments)
+
+    processed_issues = parse_jira_search_response(raw_result, jql or "Search", cleaner=_CONTENT_CLEANER)
     
-    processed_issues = parse_jira_search_response(raw_result, jql, cleaner=_CONTENT_CLEANER)
-    return [issue.__dict__ for issue in processed_issues]
+    data = raw_result.get("data", {}) if isinstance(raw_result, dict) else {}
+    return {
+        "issues": [issue.__dict__ for issue in processed_issues],
+        "next_page_token": data.get("nextPageToken"),
+        "is_last_page": data.get("isLast")
+    }
 
 
 def jira_get_issue(
-    issue_key: str,
+    issue_id_or_key: str,
     expand: Optional[str] = None,
     fields: Optional[List[str]] = None,
     fields_by_keys: bool = False,
@@ -989,7 +988,7 @@ def jira_get_issue(
     update_history: bool = False,
 ) -> Dict[str, Any]:
     arguments: Dict[str, Any] = {
-        "issue_key": issue_key,
+        "issue_id_or_key": issue_id_or_key,
         "expand": expand,
         "fields": fields,
         "fields_by_keys": fields_by_keys,
@@ -1001,8 +1000,10 @@ def jira_get_issue(
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
 
     logger.info(f"Arguments for jira_get_issue: {arguments}")
-    raw_result = _execute("jira_get_issue", uid, arguments)
+    raw_result = _execute("JIRA_GET_ISSUE", uid, arguments)
     
+    if not isinstance(raw_result, dict):
+        return {"error": "Unexpected response format from Jira."} # Added this line for error handling
     # Composio usually returns issue data directly or under "data"
     issue_data = raw_result.get("data", raw_result) if isinstance(raw_result, dict) else {}
     processed = build_processed_issue(issue_data, "", cleaner=_CONTENT_CLEANER)
@@ -1110,7 +1111,7 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
         "jira_delete_comment": jira_delete_comment,
         "jira_list_issue_comments": jira_list_issue_comments,
         "jira_get_issue": jira_get_issue,
-        "jira_search_issues_using_jql": jira_search_issues_using_jql,
+        "jira_search_for_issues_using_jql_post": jira_search_for_issues_using_jql_post
     }
 
 __all__ = ["build_registry", "get_schemas"]

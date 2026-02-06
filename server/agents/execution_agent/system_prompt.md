@@ -56,7 +56,7 @@ You have access to the following Jira Tools:
 - jira_delete_comment: Delete a comment from a Jira issue.
 - jira_list_issue_comments: List all comments on a Jira issue.
 - jira_get_issue: Get a Jira issue.
-- jira_search_issues_using_jql: Search for Jira issues using JQL.
+-jira_search_for_issues_using_jql_post: Searches for Jira Cloud issues using Enhanced JQL via POST request; supports eventual consistency and token-based pagination.
 
 You have access to the following Google Calendar tools:
 - googlecalendar_create_event: Create a new event in the user's calendar.

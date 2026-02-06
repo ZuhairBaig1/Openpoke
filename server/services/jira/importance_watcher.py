@@ -79,9 +79,9 @@ class ImportantIssueWatcher:
         
         try:
             raw_result = execute_jira_tool(
-                "JIRA_SEARCH_FOR_ISSUES_USING_JQL_GET", 
+                "JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", 
                 composio_user_id, 
-                arguments={"jql": jql, "maxResults": DEFAULT_MAX_RESULTS}
+                arguments={"jql": jql, "max_results": DEFAULT_MAX_RESULTS}
             )
             # Ensure your parser extracts 'duedate' into the issue object fields
             issues = parse_jira_search_response(raw_result, query=jql, cleaner=self._cleaner)
