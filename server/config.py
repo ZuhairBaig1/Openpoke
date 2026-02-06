@@ -51,12 +51,12 @@ class Settings(BaseModel):
     server_port: int = Field(default=_env_int("OPENPOKE_PORT", 8001))
 
     # LLM model selection
-    interaction_agent_model: str = Field(default="openai/gpt-oss-120b:free")
-    execution_agent_model: str = Field(default="openai/gpt-oss-120b:free")
-    execution_agent_search_model: str = Field(default="openai/gpt-oss-120b:free")
-    summarizer_model: str = Field(default="openai/gpt-oss-120b:free")
-    email_classifier_model: str = Field(default="openai/gpt-oss-120b:free")
-    jira_classifier_model: str = Field(default="openai/gpt-oss-120b:free")
+    interaction_agent_model: str = Field(default="google/gemini-3-flash-preview")
+    execution_agent_model: str = Field(default="google/gemini-3-flash-preview")
+    execution_agent_search_model: str = Field(default="google/gemini-3-flash-preview")
+    summarizer_model: str = Field(default="google/gemini-3-flash-preview")
+    email_classifier_model: str = Field(default="google/gemini-3-flash-preview")
+    jira_classifier_model: str = Field(default="google/gemini-3-flash-preview")
 
     # Credentials / integrations
     openrouter_api_key: Optional[str] = Field(default=os.getenv("OPENROUTER_API_KEY"))

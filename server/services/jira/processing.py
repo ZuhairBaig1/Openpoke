@@ -23,7 +23,6 @@ class ProcessedJiraIssue:
     updated: Optional[datetime]
     clean_description: str
     assignee: Optional[str]
-    # --- ADDED FIELD ---
     due_date: Optional[str] 
 
 class JiraContentCleaner:
@@ -108,6 +107,7 @@ def parse_jira_search_response(
         data = raw_result
 
     for item in data:
-        if processed := build_processed_issue(item, query, cleaner=cleaner):
+        processed = build_processed_issue(item, query, cleaner=cleaner)
+        if processed:
             issues.append(processed)
     return issues

@@ -1,4 +1,3 @@
-"""Execution Agent implementation."""
 
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -7,12 +6,10 @@ from ...services.execution import get_execution_agent_logs
 from ...logging_config import logger
 
 
-# Load system prompt template from file
 _prompt_path = Path(__file__).parent / "system_prompt.md"
 if _prompt_path.exists():
     SYSTEM_PROMPT_TEMPLATE = _prompt_path.read_text(encoding="utf-8").strip()
 else:
-    # Placeholder template - you'll replace this with actual instructions
     SYSTEM_PROMPT_TEMPLATE = """You are an execution agent responsible for completing specific tasks using available tools.
 
 Agent Name: {agent_name}
@@ -30,28 +27,18 @@ Be thorough, accurate, and efficient in your execution."""
 
 
 class ExecutionAgent:
-    """Manages state and history for an execution agent."""
-
-    # Initialize execution agent with name, conversation limits, and log store access
     def __init__(
         self,
         name: str,
         conversation_limit: Optional[int] = None
     ):
-        """
-        Initialize an execution agent.
-
-        Args:
-            name: Human-readable agent name (e.g., 'conversation with keith')
-            conversation_limit: Optional limit on past conversations to include (None = all)
-        """
+       
         self.name = name
         self.conversation_limit = conversation_limit
         self._log_store = get_execution_agent_logs()
 
-    # Generate system prompt template with agent name and purpose derived from name
     def build_system_prompt(self) -> str:
-        """Build the system prompt for this agent."""
+
         logger.info(f"Inside build_system_prompt in execution_agent\ agent, agent name = {self.name}")
         agent_purpose = f"Handle tasks related to: {self.name}"
 
@@ -60,33 +47,23 @@ class ExecutionAgent:
         prompt = prompt.replace("{agent_purpose}",agent_purpose)
         return prompt
 
-    # Combine base system prompt with conversation history, applying conversation limits
     def build_system_prompt_with_history(self) -> str:
-        """
-        Build system prompt including agent history.
-
-        Returns:
-            System prompt with embedded history transcript
-        """
+        
         logger.info("Inside build_system_prompt_with_history in execution_agent\ agent")
         base_prompt = self.build_system_prompt()
         logger.info("Crated base prompt, in execution_agent\ agent")
 
-        # Load history transcript
         logger.info("Loading transcript (execution agent logs), in \execution_agent\ agents")
         transcript = self._log_store.load_transcript(self.name)
         logger.info("Loaded transcript (execution agent logs), in \execution_agent\ agents")
 
         if transcript:
             logger.info("Transcripts exists, in \execution_agent\ agents")
-            # Apply conversation limit if needed
             if self.conversation_limit and self.conversation_limit > 0:
-                # Parse entries and limit them
                 lines = transcript.split('\n')
                 request_count = sum(1 for line in lines if '<agent_request' in line)
 
                 if request_count > self.conversation_limit:
-                    # Find where to cut
                     kept_requests = 0
                     cutoff_index = len(lines)
                     for i in range(len(lines) - 1, -1, -1):
@@ -102,29 +79,14 @@ class ExecutionAgent:
         logger.info("Did not load transcripts, or does not exists, in \execution_agent\ agents")
         return base_prompt
 
-    # Format current instruction as user message for LLM consumption
     def build_messages_for_llm(self, current_instruction: str) -> List[Dict[str, str]]:
-        """
-        Build message array for LLM call.
-
-        Args:
-            current_instruction: Current instruction from interaction agent
-
-        Returns:
-            List of messages in OpenRouter format
-        """
+        
         return [
             {"role": "user", "content": current_instruction}
         ]
-
-    # Log the agent's final response to the execution log store
     def record_response(self, response: str) -> None:
-        """Record agent's response to the log."""
         self._log_store.record_agent_response(self.name, response)
 
-    # Log tool invocation and results with truncated content for readability
     def record_tool_execution(self, tool_name: str, arguments: str, result: str) -> None:
-        """Record tool execution details."""
         self._log_store.record_action(self.name, f"Calling {tool_name} with: {arguments[:200]}")
-        # Record the tool response
         self._log_store.record_tool_response(self.name, tool_name, result[:500])

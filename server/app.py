@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     scheduler = get_trigger_scheduler()
     email_watcher = get_important_email_watcher()
     jira_watcher = get_important_issue_watcher()
-    calendar_watcher = get_calendar_watcher()
+    #calendar_watcher = get_calendar_watcher()
 
     await scheduler.start()
     await email_watcher.start()

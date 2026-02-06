@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List
 
 from . import gmail, triggers, jira, calendar
-from ..tasks import get_gmail_task_registry, get_gmail_task_schemas, get_jira_task_registry, get_jira_task_schemas
+from ..tasks import get_gmail_task_registry, get_gmail_task_schemas
 
 
 # Return OpenAI/OpenRouter-compatible tool schemas
@@ -16,7 +16,6 @@ def get_tool_schemas() -> List[Dict[str, Any]]:
         *gmail.get_schemas(),
         *jira.get_schemas(),
         *get_gmail_task_schemas(),
-        *get_jira_task_schemas(),
         *triggers.get_schemas(),
         *calendar.get_schemas(),
     ]
@@ -30,7 +29,6 @@ def get_tool_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
     registry.update(gmail.build_registry(agent_name))
     registry.update(jira.build_registry(agent_name))
     registry.update(get_gmail_task_registry(agent_name))
-    registry.update(get_jira_task_registry(agent_name))
     registry.update(triggers.build_registry(agent_name))
     registry.update(calendar.build_registry(agent_name))
     return registry

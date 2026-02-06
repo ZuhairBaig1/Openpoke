@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import status
 from fastapi.responses import JSONResponse
-from composio import ComposioToolSet
+#from composio import ComposioToolSet
 
 from ...config import Settings, get_settings
 from ...logging_config import logger

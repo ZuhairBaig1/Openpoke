@@ -7,9 +7,16 @@ from typing import Any, Callable, Dict, List, Optional
 
 from server.services.execution import get_execution_agent_logs
 from server.services.jira import execute_jira_tool, get_active_jira_user_id
+from server.services.jira.processing import (
+    JiraContentCleaner,
+    build_processed_issue,
+    parse_jira_search_response,
+)
 from server.logging_config import logger
 
 _JIRA_AGENT_NAME = "jira-execution-agent"
+
+_CONTENT_CLEANER = JiraContentCleaner()
 
 _SCHEMAS: List[Dict[str, Any]] = [
     {
@@ -467,6 +474,234 @@ _SCHEMAS: List[Dict[str, Any]] = [
             }
         }
     },
+    {
+    "type": "function",
+    "function": {
+        "name": "jira_search_issues_using_jql",
+        "description": "Search for Jira issues using JQL (Jira Query Language). Supports pagination and field filtering.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "jql": {
+                    "type": "string",
+                    "description": "The JQL query string to filter issues (e.g., 'project = \"DEV\" AND status = \"In Progress\"'). Required unless using next_page_token."
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of issues to return per page. Default is 50.",
+                    "default": 50
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of specific fields to retrieve for each issue (e.g., ['summary', 'status', 'assignee']). specific fields reduces response size."
+                },
+                "next_page_token": {
+                    "type": "string",
+                    "description": "The token to retrieve the next page of results. Use this if a previous response included a next_page_token."
+                },
+                "expand": {
+                    "type": "string",
+                    "description": "Comma-separated list of entities to expand (e.g., 'renderedFields,names,schema,transitions,operations')."
+                },
+                "fields_by_keys": {
+                    "type": "boolean",
+                    "description": "Set to true to reference fields by their keys (e.g., 'customfield_10000') instead of IDs.",
+                    "default": False                                    
+                },
+                "fail_fast": {
+                    "type": "boolean",
+                    "description": "If true, the search fails immediately if there is a partial error.",
+                    "default": False
+                },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of issue property keys (metadata) to retrieve."
+                },
+                "reconcile_issues": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "description": "List of issue IDs to enable read-after-write reconciliation."
+                }
+            },
+            "required": [
+                "jql"
+            ],
+            "additionalProperties": False
+        }
+    }
+},
+{
+"type": "function",
+    "function": {
+        "name": "jira_get_issue",
+        "description": "Retrieve the full details of a specific Jira issue by its key or ID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "issue_key": {
+                    "type": "string",
+                    "description": "The unique key (e.g., 'PROJ-123') or numeric ID (e.g., '10000') of the issue to retrieve."
+                },
+                "expand": {
+                    "type": "string",
+                    "description": "Comma-separated list of extra sections to include. Use 'changelog' for history, 'renderedFields' for HTML, 'transitions' for workflow options."
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of specific field names or IDs to return (e.g., ['summary', 'status', 'assignee']). Leaving this empty returns all standard fields."
+                },
+                "fields_by_keys": {
+                    "type": "boolean",
+                    "description": "Set to True if the items in 'fields' are names (like 'summary') rather than internal IDs. Default is False.",
+                    "default": False
+                },
+                "properties": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of specific issue property keys (metadata) to retrieve."
+                },
+                "update_history": {
+                    "type": "boolean",
+                    "description": "If True, this view will be added to the user's 'Recently Viewed' history in Jira. Default is False.",
+                    "default": False
+                }
+            },
+            "required": [
+                "issue_key"
+            ],
+            "additionalProperties": False
+        }
+    }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "jira_list_issue_comments",
+        "description": "Retrieve all comments from a specific Jira issue, sorted by creation date.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "issue_id_or_key": {
+                    "type": "string",
+                    "description": "The unique key (e.g., 'PROJ-123') or numeric ID (e.g., '10000') of the Jira issue."
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of comments to return per page. Jira limits this to ~100. Default is 50.",
+                    "default": 50,
+                    "maximum": 100
+                },
+                "start_at": {
+                    "type": "integer",
+                    "description": "The index of the first comment to return (0-based). Use for pagination.",
+                    "default": 0
+                },
+                "order_by": {
+                    "type": "string",
+                    "description": "Sort order for comments. Currently only supports 'created' (oldest to newest).",
+                    "enum": ["created"]
+                },
+                "expand": {
+                    "type": "string",
+                    "description": "Use 'renderedBody' to include the HTML formatted version of the comment text.",
+                    "enum": ["renderedBody"]
+                }
+            },
+            "required": [
+                "issue_id_or_key"
+            ],
+            "additionalProperties": False
+        }
+    }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "jira_delete_comment",
+        "description": "Delete a specific comment from a Jira issue using the issue key/ID and the comment ID.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "issue_id_or_key": {
+                    "type": "string",
+                    "description": "The ID (e.g., '10000') or key (e.g., 'PROJ-123') of the Jira issue from which the comment will be deleted."
+                },
+                "comment_id": {
+                    "type": "string",
+                    "description": "The unique identifier of the comment to be deleted (e.g., '10001')."
+                }
+            },
+            "required": [
+                "issue_id_or_key",
+                "comment_id"
+            ],
+            "additionalProperties": False
+        }
+    }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "jira_get_all_groups",
+        "description": "Retrieve a list of all user groups available in the Jira instance. Useful for permissions auditing and group discovery.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "max_results": {
+                    "type": "integer",
+                    "description": "The maximum number of groups to return per page. Used for pagination.",
+                    "default": 50
+                },
+                "start_at": {
+                    "type": "integer",
+                    "description": "The index of the first item to return. Used for pagination to skip over groups already retrieved.",
+                    "default": 0
+                }
+            },
+            "required": [],
+            "additionalProperties": False
+        }
+    }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "jira_get_group",
+        "description": "Retrieve full details for a specific Jira group, such as 'site-admins' or 'developers'. essential for listing members within a group.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "group_name": {
+                    "type": "string",
+                    "description": "The name of the group to retrieve (e.g., 'jira-software-users'). Either group_name or group_id must be provided."
+                },
+                "group_id": {
+                    "type": "string",
+                    "description": "The unique ID of the group to retrieve. Either group_name or group_id must be provided."
+                },
+                "expand": {
+                    "type": "string",
+                    "description": "List of entities to expand in the response. Pass 'users' to retrieve the list of members in this group."
+                }
+            },
+            "required": [],
+            "additionalProperties": False
+        }
+    }
+}
 ]
 
 _LOG_STORE = get_execution_agent_logs()
@@ -476,13 +711,10 @@ def get_schemas() -> List[Dict[str, Any]]:
     return _SCHEMAS
 
 def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute a Jira tool and record the action for the journal."""
-    # Filter out None values so we rely on API defaults
     payload = {k: v for k, v in arguments.items() if v is not None}
     payload_str = json.dumps(payload, ensure_ascii=False, sort_keys=True) if payload else "{}"
     
     try:
-        # Note: tool_name is passed exactly as defined in the schema 'name' field
         logger.info(f"PASSING ARGUMENTS TO EXECUTE JIRA TOOL: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={payload}")
         result = execute_jira_tool(tool_name, composio_user_id, arguments=payload)
     except Exception as exc:
@@ -497,8 +729,6 @@ def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -
         description=f"{tool_name} succeeded | args={payload_str}",
     )
     return result
-
-# --- Issue Management Functions ---
 
 def jira_create_issue(
     project_key: str,
@@ -614,8 +844,6 @@ def jira_get_transitions(
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_transitions")
     return _execute("jira_get_transitions", uid, arguments)
 
-# --- Comment Functions ---
-
 def jira_add_comment(
     issue_id_or_key: str,
     comment: str,
@@ -655,8 +883,6 @@ def jira_update_comment(
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_update_comment")
     return _execute("jira_update_comment", uid, arguments)
-
-# --- Project & User Discovery ---
 
 def jira_get_all_projects(
     action: str = "view",
@@ -721,6 +947,153 @@ def jira_find_users(
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_find_users")
     return _execute("jira_find_users", uid, arguments)
 
+def jira_search_issues_using_jql(
+    jql: str,
+    max_results: int = 50,
+    fields: Optional[List[str]] = None,
+    next_page_token: Optional[str] = None,
+    expand: Optional[str] = None,
+    fields_by_keys: bool = False,
+    fail_fast: bool = False,
+    properties: Optional[List[str]] = None,
+    reconcile_issues: Optional[List[int]] = None,
+) -> List[Dict[str, Any]]:
+    arguments: Dict[str, Any] = {
+        "jql": jql,
+        "max_results": max_results,
+        "fields": fields,
+        "next_page_token": next_page_token,
+        "expand": expand,
+        "fields_by_keys": fields_by_keys,
+        "fail_fast": fail_fast,
+        "properties": properties,
+        "reconcile_issues": reconcile_issues,
+    }
+    
+    uid = get_active_jira_user_id()
+    if not uid: return [{"error": "Jira not connected. Please connect Jira in settings first."}]
+    
+    logger.info(f"Arguments for jira_search_issues_using_jql: {arguments}")
+    raw_result = _execute("JIRA_SEARCH_FOR_ISSUES_USING_JQL_GET", uid, arguments)
+    
+    processed_issues = parse_jira_search_response(raw_result, jql, cleaner=_CONTENT_CLEANER)
+    return [issue.__dict__ for issue in processed_issues]
+
+
+def jira_get_issue(
+    issue_key: str,
+    expand: Optional[str] = None,
+    fields: Optional[List[str]] = None,
+    fields_by_keys: bool = False,
+    properties: Optional[List[str]] = None,
+    update_history: bool = False,
+) -> Dict[str, Any]:
+    arguments: Dict[str, Any] = {
+        "issue_key": issue_key,
+        "expand": expand,
+        "fields": fields,
+        "fields_by_keys": fields_by_keys,
+        "properties": properties,
+        "update_history": update_history,
+    }
+    
+    uid = get_active_jira_user_id()
+    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
+
+    logger.info(f"Arguments for jira_get_issue: {arguments}")
+    raw_result = _execute("jira_get_issue", uid, arguments)
+    
+    # Composio usually returns issue data directly or under "data"
+    issue_data = raw_result.get("data", raw_result) if isinstance(raw_result, dict) else {}
+    processed = build_processed_issue(issue_data, "", cleaner=_CONTENT_CLEANER)
+    
+    if processed:
+        return processed.__dict__
+    return raw_result
+
+
+
+def jira_list_issue_comments(
+    issue_id_or_key: str,
+    max_results: int = 50,
+    start_at: int = 0,
+    order_by: Optional[str] = None,
+    expand: Optional[str] = None,
+) -> Dict[str, Any]:
+
+    arguments: Dict[str, Any] = {
+        "issue_id_or_key": issue_id_or_key,
+        "max_results": max_results,
+        "start_at": start_at,
+        "order_by": order_by,
+        "expand": expand,
+    }
+
+    uid = get_active_jira_user_id()
+    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
+
+    logger.info(f"Arguments for jira_list_issue_comments: {arguments}")
+    raw_result = _execute("jira_list_issue_comments", uid, arguments)
+    
+    # Process comments to clean bodies
+    data = raw_result.get("data", raw_result) if isinstance(raw_result, dict) else {}
+    comments = data.get("comments", []) if isinstance(data, dict) else []
+    
+    for comment in comments:
+        if "body" in comment:
+            comment["body"] = _CONTENT_CLEANER.clean_text(str(comment["body"]))
+            
+    return raw_result
+
+
+def jira_get_all_groups(
+    max_results: int = 50,
+    start_at: int = 0,
+) -> Dict[str, Any]:
+
+    arguments: Dict[str, Any] = {
+        "max_results": max_results,
+        "start_at": start_at,
+    }
+
+    logger.info(f"jira_get_all_groups called with max_results: {max_results} and start_at: {start_at}")
+    uid = get_active_jira_user_id()
+    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Arguments for jira_get_all_groups: {arguments}")
+    return _execute("jira_get_all_groups",uid,arguments)
+
+def jira_get_group(
+    group_name: Optional[str] = None,
+    group_id: Optional[str] = None,
+    expand: Optional[str] = None,
+) -> Dict[str, Any]:
+
+    arguments: Dict[str, Any] = {
+        "group_name": group_name,
+        "group_id": group_id,
+        "expand": expand,
+    }
+
+    logger.info(f"jira_get_group called with group_name: {group_name} and group_id: {group_id}")
+    uid = get_active_jira_user_id()
+    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Arguments for jira_get_group: {arguments}")
+    return _execute("jira_get_group",uid,arguments)
+
+def jira_delete_comment(
+    issue_id_or_key: str,
+    comment_id: str,
+) -> Dict[str, Any]:
+    arguments: Dict[str, Any] = {
+        "issueIdOrKey": issue_id_or_key,
+        "id": comment_id,
+    }
+    logger.info(f"jira_delete_comment called with issue_id_or_key: {issue_id_or_key} and comment_id: {comment_id}")
+    uid = get_active_jira_user_id()
+    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
+    logger.info(f"Arguments for jira_delete_comment: {arguments}")
+    return _execute("jira_delete_comment",uid,arguments)
+
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
     return {
         "jira_create_issue": jira_create_issue,
@@ -732,6 +1105,12 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
         "jira_get_all_projects": jira_get_all_projects,
         "jira_get_project": jira_get_project,
         "jira_find_users": jira_find_users,
+        "jira_get_all_groups": jira_get_all_groups,
+        "jira_get_group": jira_get_group,
+        "jira_delete_comment": jira_delete_comment,
+        "jira_list_issue_comments": jira_list_issue_comments,
+        "jira_get_issue": jira_get_issue,
+        "jira_search_issues_using_jql": jira_search_issues_using_jql,
     }
 
 __all__ = ["build_registry", "get_schemas"]
