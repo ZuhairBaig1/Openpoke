@@ -78,10 +78,13 @@ class ImportantIssueWatcher:
         jql = "assignee = currentUser() OR watcher = currentUser() OR reporter = currentUser() ORDER BY updated DESC"
         
         try:
-            raw_result = execute_jira_tool(
-                "JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", 
-                composio_user_id, 
-                arguments={"jql": jql, "max_results": DEFAULT_MAX_RESULTS}
+            # Use direct Jira API to bypass Composio's deprecated endpoint
+            from .direct_jira_api import search_issues_jql
+            
+            raw_result = search_issues_jql(
+                user_id=composio_user_id,
+                jql=jql,
+                max_results=DEFAULT_MAX_RESULTS
             )
             # Ensure your parser extracts 'duedate' into the issue object fields
             issues = parse_jira_search_response(raw_result, query=jql, cleaner=self._cleaner)
@@ -193,7 +196,7 @@ class ImportantIssueWatcher:
 
     async def _get_latest_comment_id(self, issue_key: str, user_id: str) -> str:
         try:
-            res = execute_jira_tool("JIRA_GET_ISSUE_COMMENTS", user_id, arguments={"issue_key": issue_key})
+            res = execute_jira_tool("JIRA_GET_ISSUE_COMMENTS", user_id, arguments={"issue_key": issue_key}, version="20260203_00")
             comments = res.get("data", []) if isinstance(res, dict) else []
             if not comments: return "0"
             return str(max(int(c.get("id", 0)) for c in comments))
@@ -202,10 +205,10 @@ class ImportantIssueWatcher:
     async def _check_new_mentions(self, issue_key: str, last_id: str, user_id: str) -> tuple[bool, str, str]:
         """Returns (Found?, New_Max_ID, Fragment_Text)"""
         try:
-            res = execute_jira_tool("JIRA_GET_ISSUE_COMMENTS", user_id, arguments={"issue_key": issue_key})
+            res = execute_jira_tool("JIRA_GET_ISSUE_COMMENTS", user_id, arguments={"issue_key": issue_key}, version="20260203_00")
             comments = res.get("data", []) if isinstance(res, dict) else []
             
-            my_info = execute_jira_tool("JIRA_GET_MY_SELF", user_id, arguments={})
+            my_info = execute_jira_tool("JIRA_GET_MY_SELF", user_id, arguments={}, version="20260203_00")
             my_account_id = my_info.get("accountId", "")
 
             mention_found = False

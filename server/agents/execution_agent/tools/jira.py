@@ -701,13 +701,13 @@ def get_schemas() -> List[Dict[str, Any]]:
     """Return Jira tool schemas."""
     return _SCHEMAS
 
-def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any], version: Optional[str] = None) -> Dict[str, Any]:
     payload = {k: v for k, v in arguments.items() if v is not None}
     payload_str = json.dumps(payload, ensure_ascii=False, sort_keys=True) if payload else "{}"
     
     try:
-        logger.info(f"PASSING ARGUMENTS TO EXECUTE JIRA TOOL: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={payload}")
-        result = execute_jira_tool(tool_name, composio_user_id, arguments=payload)
+        logger.info(f"PASSING ARGUMENTS TO EXECUTE JIRA TOOL: tool_name={tool_name}, composio_user_id={composio_user_id}, version={version}, arguments={payload}")
+        result = execute_jira_tool(tool_name, composio_user_id, arguments=payload, version=version)
     except Exception as exc:
         _LOG_STORE.record_action(
             _JIRA_AGENT_NAME,
@@ -762,7 +762,7 @@ def jira_create_issue(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_create_issue")
-    return _execute("jira_create_issue", uid, arguments)
+    return _execute("jira_create_issue", uid, arguments, version="20260203_00")
 
 def jira_edit_issue(
     issue_id_or_key: str,
@@ -787,7 +787,7 @@ def jira_edit_issue(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_edit_issue")
-    return _execute("jira_edit_issue", uid, arguments)
+    return _execute("jira_edit_issue", uid, arguments, version="20260203_00")
 
 def jira_transition_issue(
     issue_id_or_key: str,
@@ -812,7 +812,7 @@ def jira_transition_issue(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_transition_issue")
-    return _execute("jira_transition_issue", uid, arguments)
+    return _execute("jira_transition_issue", uid, arguments, version="20260203_00")
 
 def jira_get_transitions(
     issue_id_or_key: str,
@@ -833,7 +833,7 @@ def jira_get_transitions(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_transitions")
-    return _execute("jira_get_transitions", uid, arguments)
+    return _execute("jira_get_transitions", uid, arguments, version="20260203_00")
 
 def jira_add_comment(
     issue_id_or_key: str,
@@ -850,7 +850,7 @@ def jira_add_comment(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_add_comment")
-    return _execute("jira_add_comment", uid, arguments)
+    return _execute("jira_add_comment", uid, arguments, version="20260203_00")
 
 def jira_update_comment(
     issue_id_or_key: str,
@@ -873,7 +873,7 @@ def jira_update_comment(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_update_comment")
-    return _execute("jira_update_comment", uid, arguments)
+    return _execute("jira_update_comment", uid, arguments, version="20260203_00")
 
 def jira_get_all_projects(
     action: str = "view",
@@ -902,7 +902,7 @@ def jira_get_all_projects(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_all_projects")
-    return _execute("jira_get_all_projects", uid, arguments)
+    return _execute("jira_get_all_projects", uid, arguments, version="20260203_00")
 
 def jira_get_project(
     project_id_or_key: str,
@@ -917,7 +917,7 @@ def jira_get_project(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_get_project")
-    return _execute("jira_get_project", uid, arguments)
+    return _execute("jira_get_project", uid, arguments, version="20260203_00")
 
 def jira_find_users(
     query: Optional[str] = None,
@@ -936,7 +936,7 @@ def jira_find_users(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected."}
     logger.info(f"Active Jira user ID: {uid}, being passed to jira_find_users")
-    return _execute("jira_find_users", uid, arguments)
+    return _execute("jira_find_users", uid, arguments, version="20260203_00")
 
 def jira_search_for_issues_using_jql_post(
     jql: Optional[str] = None,
@@ -967,7 +967,20 @@ def jira_search_for_issues_using_jql_post(
         return {"error": "Jira not connected. Please connect Jira in settings first."}
     
     logger.info(f"Arguments for jira_search_for_issues_using_jql_post: {arguments}")
-    raw_result = _execute("JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", uid, arguments)
+    
+    # Use direct Jira API to bypass Composio's deprecated endpoint
+    from server.services.jira.direct_jira_api import search_issues_jql
+    
+    raw_result = search_issues_jql(
+        user_id=uid,
+        jql=jql,
+        max_results=max_results,
+        next_page_token=next_page_token,
+        fields=fields,
+        expand=expand,
+        properties=properties,
+        fields_by_keys=fields_by_keys
+    )
 
     processed_issues = parse_jira_search_response(raw_result, jql or "Search", cleaner=_CONTENT_CLEANER)
     
@@ -1000,7 +1013,7 @@ def jira_get_issue(
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
 
     logger.info(f"Arguments for jira_get_issue: {arguments}")
-    raw_result = _execute("JIRA_GET_ISSUE", uid, arguments)
+    raw_result = _execute("JIRA_GET_ISSUE", uid, arguments, version="20260203_00")
     
     if not isinstance(raw_result, dict):
         return {"error": "Unexpected response format from Jira."} # Added this line for error handling
@@ -1034,7 +1047,7 @@ def jira_list_issue_comments(
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
 
     logger.info(f"Arguments for jira_list_issue_comments: {arguments}")
-    raw_result = _execute("jira_list_issue_comments", uid, arguments)
+    raw_result = _execute("jira_list_issue_comments", uid, arguments, version="20260203_00")
     
     # Process comments to clean bodies
     data = raw_result.get("data", raw_result) if isinstance(raw_result, dict) else {}
@@ -1061,7 +1074,7 @@ def jira_get_all_groups(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
     logger.info(f"Arguments for jira_get_all_groups: {arguments}")
-    return _execute("jira_get_all_groups",uid,arguments)
+    return _execute("jira_get_all_groups",uid,arguments, version="20260203_00")
 
 def jira_get_group(
     group_name: Optional[str] = None,
@@ -1079,7 +1092,7 @@ def jira_get_group(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
     logger.info(f"Arguments for jira_get_group: {arguments}")
-    return _execute("jira_get_group",uid,arguments)
+    return _execute("jira_get_group",uid,arguments, version="20260203_00")
 
 def jira_delete_comment(
     issue_id_or_key: str,
@@ -1093,7 +1106,7 @@ def jira_delete_comment(
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
     logger.info(f"Arguments for jira_delete_comment: {arguments}")
-    return _execute("jira_delete_comment",uid,arguments)
+    return _execute("jira_delete_comment",uid,arguments, version="20260203_00")
 
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
     return {

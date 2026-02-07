@@ -284,12 +284,23 @@ def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
 
     return JSONResponse({"ok": True, "disconnected": bool(removed_ids), "removed_connection_ids": removed_ids})
 
-def execute_jira_tool(tool_name: str, composio_user_id: str, *, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def execute_jira_tool(
+    tool_name: str, 
+    composio_user_id: str, 
+    *, 
+    arguments: Optional[Dict[str, Any]] = None,
+    version: Optional[str] = "20260203_00"
+) -> Dict[str, Any]:
     prepared_args = {k: v for k, v in (arguments or {}).items() if v is not None}
     try:
         client = _get_composio_client()
-        logger.info(f"BEFORE CALLING client.client.tools.execute: tool_name={tool_name}, composio_user_id={composio_user_id}, arguments={prepared_args}, in execute_jira_tool inside jira client.py")
-        result = client.client.tools.execute(tool_name.upper(), user_id=composio_user_id, arguments=prepared_args)
+        logger.info(f"BEFORE CALLING client.client.tools.execute: tool_name={tool_name.upper()}, user_id={composio_user_id}, version={version}, arguments={prepared_args}")
+        result = client.client.tools.execute(
+            tool_name.upper(), 
+            user_id=composio_user_id, 
+            arguments=prepared_args,
+            version=version
+        )
         if hasattr(result, "model_dump"):
             logger.info(f"AFTER CALLING client.client.tools.execute: WILL RETURN {result.model_dump()}, in execute_jira_tool inside jira client.py")
             return result.model_dump()
