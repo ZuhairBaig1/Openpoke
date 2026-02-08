@@ -968,19 +968,7 @@ def jira_search_for_issues_using_jql_post(
     
     logger.info(f"Arguments for jira_search_for_issues_using_jql_post: {arguments}")
     
-    # Use direct Jira API to bypass Composio's deprecated endpoint
-    from server.services.jira.direct_jira_api import search_issues_jql
-    
-    raw_result = search_issues_jql(
-        user_id=uid,
-        jql=jql,
-        max_results=max_results,
-        next_page_token=next_page_token,
-        fields=fields,
-        expand=expand,
-        properties=properties,
-        fields_by_keys=fields_by_keys
-    )
+    raw_result = _execute("JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST", uid, arguments, version="20260203_00")
 
     processed_issues = parse_jira_search_response(raw_result, jql or "Search", cleaner=_CONTENT_CLEANER)
     

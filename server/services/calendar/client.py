@@ -10,7 +10,6 @@ from uuid import UUID
 
 from fastapi import status
 from fastapi.responses import JSONResponse
-#from composio import ComposioToolSet
 
 from ...config import Settings, get_settings
 from ...logging_config import logger
@@ -73,20 +72,18 @@ def _get_composio_client(settings: Optional[Settings] = None):
     return _CLIENT
 
 
-# --- ADDED: Generic Tool Executor (Required by _fetch_calendar_profile) ---
+# --- Generic Tool Executor ---
 def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> Any:
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
         return {"error": "Missing user_id"}
 
     try:
-        settings = get_settings()
-        api_key = settings.composio_api_key
-        toolset = ComposioToolSet(api_key=api_key, entity_id=sanitized_user_id)
-        
-        result = toolset.execute_action(
-            action=action_name,
-            params=arguments
+        client = _get_composio_client()
+        result = client.client.tools.execute(
+            tool_name=action_name,  # Updated from action_name kwarg to tool_name
+            user_id=sanitized_user_id,
+            arguments=arguments
         )
         return _normalize_tool_response(result)
     except Exception as exc:
@@ -94,23 +91,24 @@ def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> An
         return {"error": str(exc)}
 
 
-# --- ADDED: Trigger Enabler Function ---
 def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    Enables a specific trigger (e.g., RSVP changes) for a user.
-    """
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
         return {"status": "FAILED", "error": "Missing user_id"}
 
     try:
-        settings = get_settings()
-        api_key = settings.composio_api_key
+        client = _get_composio_client()
+        # REPLACEMENT: Use list() instead of toolset.get_connected_accounts()
+        response = client.connected_accounts.list(user_ids=[sanitized_user_id], statuses=["ACTIVE"])
         
-        toolset = ComposioToolSet(api_key=api_key, entity_id=sanitized_user_id)
-
-        accounts = toolset.get_connected_accounts()
-
+        accounts = []
+        if hasattr(response, "data"):
+            accounts = response.data
+        elif isinstance(response, dict):
+            accounts = response.get("data", [])
+        elif isinstance(response, list):
+            accounts = response
+        
         google_account = next(
             (
                 acc for acc in accounts 
@@ -125,15 +123,21 @@ def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict, me
         if not google_account:
             return {"status": "FAILED", "error": "Google Calendar account not found"}
 
-
-        # Enable the Trigger
-        result = toolset.client.triggers.enable(
+        account_id = getattr(google_account, "id", None)
+        if not account_id and isinstance(google_account, dict):
+            account_id = google_account.get("id")
+            
+        # REPLACEMENT: Use client.triggers directly
+        result = client.triggers.enable(
             name=trigger_name,
-            connected_account_id=google_account.id,
+            connected_account_id=account_id,
             config=arguments
         )
 
-        return result
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        return result if isinstance(result, dict) else {"result": str(result)}
+
     except Exception as exc:
         logger.exception(
             "Failed to enable calendar trigger",
@@ -246,7 +250,7 @@ def _fetch_calendar_profile_from_composio(
     except RuntimeError as exc:
         logger.warning("CALENDARLIST_GET invocation failed: %s", exc)
         return None
-    except Exception:  # pragma: no cover
+    except Exception:
         logger.exception(
             "Unexpected error fetching Calendar profile",
             extra={"user_id": sanitized},
@@ -256,11 +260,8 @@ def _fetch_calendar_profile_from_composio(
     profile: Optional[Dict[str, Any]] = None
 
     if isinstance(result, dict):
-        # Preferred, schema-compliant path
         if result.get("successful") is True and isinstance(result.get("data"), dict):
             profile = result["data"]
-
-        # Defensive fallbacks (SDK variance)
         elif isinstance(result.get("response_data"), dict):
             profile = result["response_data"]
         elif isinstance(result.get("data"), dict):
@@ -277,7 +278,7 @@ def _fetch_calendar_profile_from_composio(
     return None
 
 
-# Start Gmail OAuth connection process and return redirect URL
+# Start Calendar OAuth connection process and return redirect URL
 async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = (
         payload.auth_config_id
@@ -298,15 +299,17 @@ async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: S
     _clear_cached_profile(user_id)
 
     try:
-        settings = get_settings()
-        api_key = settings.composio_api_key
-        toolset = ComposioToolSet(api_key=api_key, entity_id=user_id)
+        # REPLACEMENT: Use singleton client and direct connected_accounts.initiate
+        client = _get_composio_client()
         
-        req = toolset.initiate_connection(
-            app="googlecalendar",
-            auth_config={"id": auth_config_id}
+        # NOTE: In new SDK, initiate often takes integration_id/auth_config_id as a parameter
+        # Assuming auth_config_id is the integration UUID
+        req = client.connected_accounts.initiate(
+            auth_config_id=auth_config_id,
+            user_id=user_id
         )
 
+        # Preserve the watcher start logic
         async def start_calendar_watcher():
             from server.services import get_calendar_watcher
             calendar_watcher = get_calendar_watcher()
@@ -317,8 +320,7 @@ async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: S
         return JSONResponse(
             {
                 "ok": True,
-                "redirect_url": getattr(req, "redirectUrl", None)
-                or getattr(req, "redirect_url", None),
+                "redirect_url": getattr(req, "redirectUrl", None) or getattr(req, "redirect_url", None),
                 "connection_request_id": getattr(req, "connectedAccountId", None) or getattr(req, "id", None),
                 "user_id": user_id,
             }
@@ -344,30 +346,37 @@ def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
         )
 
     try:
-        from composio import ComposioToolSet
-        settings = get_settings()
-        api_key = settings.composio_api_key
-        toolset = ComposioToolSet(api_key=api_key)
-        
+        # REPLACEMENT: Use singleton client
+        client = _get_composio_client()
         account: Any = None
 
         if connection_request_id:
             try:
-                account = toolset.get_connected_account(id=connection_request_id)
+                account = client.connected_accounts.get(id=connection_request_id)
             except Exception:
                 account = None
 
         if account is None and user_id:
             try:
-                entity = toolset.client.get_entity(id=user_id)
-                connections = entity.get_connections()
-                # Find the first active Calendar connection
-                for conn in connections:
-                    if (getattr(conn, "appName", "").upper() == "GOOGLECALENDAR" or
-                        getattr(conn, "appUniqueId", "").upper() == "GOOGLECALENDAR") and \
-                       getattr(conn, "status", "").upper() == "ACTIVE":
-                        account = conn
-                        break
+                # REPLACEMENT: Use list filtering logic instead of get_entity iteration
+                items = client.connected_accounts.list(
+                    user_ids=[user_id], 
+                    statuses=["ACTIVE"]
+                )
+                
+                data = getattr(items, "data", None)
+                if data is None and isinstance(items, dict):
+                    data = items.get("data")
+                elif isinstance(items, list):
+                    data = items
+                
+                if data:
+                    # Find first Google Calendar account
+                    for item in data:
+                        if (getattr(item, "appName", "").upper() == "GOOGLECALENDAR" or 
+                            getattr(item, "appUniqueId", "").upper() == "GOOGLECALENDAR"):
+                            account = item
+                            break
             except Exception:
                 account = None
 
@@ -494,22 +503,23 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
         _delete_connection(connection_id)
     elif user_id:
         try:
-            entity = client.get_entity(id=user_id)
-            connections = entity.get_connections()
-            for conn in connections:
-                if getattr(conn, "appName", "").upper() == "GOOGLECALENDAR" or \
-                   getattr(conn, "appUniqueId", "").upper() == "GOOGLECALENDAR":
-                    cid = getattr(conn, "id", None)
-                    if cid:
-                        try:
-                            client.connected_accounts.delete(cid)
-                            removed_ids.append(cid)
-                            uid = _normalized(getattr(conn, "user_id", None))
-                            if uid:
-                                affected_user_ids.add(uid)
-                        except Exception as exc:
-                            logger.exception("Failed to remove Calendar connection", extra={"connection_id": cid})
-                            errors.append(str(exc))
+            # REPLACEMENT: Use list filtering instead of get_entity
+            items = client.connected_accounts.list(user_ids=[user_id])
+            
+            data = getattr(items, "data", None)
+            if data is None and isinstance(items, dict):
+                data = items.get("data")
+            elif isinstance(items, list):
+                data = items
+
+            if data:
+                for conn in data:
+                    if getattr(conn, "appName", "").upper() == "GOOGLECALENDAR" or \
+                       getattr(conn, "appUniqueId", "").upper() == "GOOGLECALENDAR":
+                        cid = getattr(conn, "id", None)
+                        if cid:
+                            _delete_connection(cid)
+
         except Exception as exc:
             logger.exception("Failed to list Calendar connections", extra={"user_id": user_id})
             return error_response(
@@ -517,7 +527,6 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(exc),
             )
-
 
     if user_id:
         affected_user_ids.add(user_id)
@@ -560,7 +569,6 @@ def _sanitize_dict_values(data: Any) -> Any:
     return data
 
 def _base_normalize(result: Any) -> Dict[str, Any]:
-
     if result is None:
         return {}
 
