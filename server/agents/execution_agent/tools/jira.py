@@ -1083,14 +1083,14 @@ def jira_get_group(
     return _execute("jira_get_group",uid,arguments, version="20260203_00")
 
 def jira_delete_comment(
-    issue_id_or_key: str,
-    comment_id: str,
+    issueIdOrKey: str,
+    id: str,
 ) -> Dict[str, Any]:
     arguments: Dict[str, Any] = {
-        "issueIdOrKey": issue_id_or_key,
-        "id": comment_id,
+        "issue_id_or_key": issueIdOrKey,
+        "id": id,
     }
-    logger.info(f"jira_delete_comment called with issue_id_or_key: {issue_id_or_key} and comment_id: {comment_id}")
+    logger.info(f"jira_delete_comment called with issue_id_or_key: {issueIdOrKey} and id: {id}")
     uid = get_active_jira_user_id()
     if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
     logger.info(f"Arguments for jira_delete_comment: {arguments}")
