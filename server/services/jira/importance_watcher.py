@@ -10,7 +10,6 @@ from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from .client import execute_jira_tool, get_active_jira_user_id
 from .processing import JiraContentCleaner, ProcessedJiraIssue, parse_jira_search_response
 from .seen_store import JiraSeenStore
-# We assume this function is defined in your classifier file
 from .importance_classifier import classify_jira_changes 
 from ...logging_config import logger
 
@@ -78,15 +77,16 @@ class ImportantIssueWatcher:
         jql = "assignee = currentUser() OR watcher = currentUser() OR reporter = currentUser() ORDER BY updated DESC"
         
         try:
-            # Use direct Jira API to bypass Composio's deprecated endpoint
-            from .direct_jira_api import search_issues_jql
+
             
-            raw_result = search_issues_jql(
-                user_id=composio_user_id,
-                jql=jql,
-                max_results=DEFAULT_MAX_RESULTS
+            raw_result = execute_jira_tool(
+                tool_name="JIRA_SEARCH_FOR_ISSUES_USING_JQL_POST",
+                composio_user_id=composio_user_id,
+                arguments={
+                    "jql": jql,
+                    "max_results": DEFAULT_MAX_RESULTS
+                }
             )
-            # Ensure your parser extracts 'duedate' into the issue object fields
             issues = parse_jira_search_response(raw_result, query=jql, cleaner=self._cleaner)
         except Exception as exc:
             logger.warning("Failed to fetch Jira issues", extra={"error": str(exc)})

@@ -28,6 +28,6 @@ async def calendar_disconnect(payload: CalendarDisconnectPayload) -> JSONRespons
     return disconnect_calendar_account(payload)
 
 
-@router.post("/webhook")
+@router.post("/webhook_response")
 async def calendar_webhook(payload: dict) -> None:
     return await process_event(payload)
