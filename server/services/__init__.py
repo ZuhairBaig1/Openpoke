@@ -29,7 +29,6 @@ from .jira import (
     get_jira_watcher,
     JiraWatcher,
     enable_jira_trigger,
-    delete_jira_trigger,
     normalize_trigger_response,
 )
 

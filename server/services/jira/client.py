@@ -6,6 +6,7 @@ import uuid
 import threading
 from datetime import datetime
 from typing import Any, Dict, Optional
+from uuid import UUID
 
 from fastapi import status
 from fastapi.responses import JSONResponse
@@ -129,7 +130,6 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
         logger.warning(f"JIRA_GET_CURRENT_USER failed, error:- {str(exc)}", extra={"user_id": sanitized, "error": str(exc)})
     return None
 
-# --- Main API Methods ---
 
 async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = (
@@ -191,6 +191,37 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
         from ...services import get_jira_watcher
         jira_watcher_instance = get_jira_watcher()
         await jira_watcher_instance.start_project_trigger()
+
+        all_active_projects = execute_jira_tool(
+            "JIRA_GET_ALL_PROJECTS",
+            user_id,
+            arguments={
+                "action": "view",
+                "query": None,
+                "maxResults": 50,
+                "startAt": 0,
+                "orderBy": "name",
+                "expand": None,
+                "status": None,
+                "categoryId": None,
+                "properties": None,
+                "name": None
+            }
+
+        )
+
+        project_list = all_active_projects.get("data", {}).get("data", {}).get("values", [])
+
+        for project in project_list:
+            project_key = project.get("key")
+            
+            await jira_watcher_instance.start_issue_trigger(project_key)
+            logger.info(f"Jira issue trigger started for project: {project_key}, in jira/client.py ")
+
+            await jira_watcher_instance.start_update_issue_trigger(project_key)
+            logger.info(f"Jira issue update trigger started for project: {project_key}, in jira/client.py")
+
+
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -289,10 +320,6 @@ async def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONRespons
                 cid = getattr(entry, "id", None)
                 if cid:
                     try:
-                        from ...services import get_jira_watcher
-                        jira_watcher_instance = get_jira_watcher()
-                        await jira_watcher_instance.stop_project_trigger()
-                        
                         client.connected_accounts.delete(cid)
                         removed_ids.append(cid)
                     except Exception as exc:
@@ -355,25 +382,6 @@ def enable_jira_trigger(trigger_name: str, user_id: str, arguments: Optional[Dic
         logger.exception(
             "Failed to enable jira trigger",
             extra={"trigger": trigger_name, "user_id": sanitized_user_id, "error": str(exc)}
-        )
-        return {"status": "FAILED", "error": str(exc)}
-
-
-def delete_jira_trigger(trigger_id: str):
-    sanitized_trigger_id = _normalized(trigger_id)
-    if not sanitized_trigger_id:
-        return {"status": "FAILED", "error": "Missing trigger_id"}
-    
-    try:
-        client = _get_composio_client()
-        result = client.triggers.delete(sanitized_trigger_id)
-        if hasattr(result, "model_dump"):
-            return result.model_dump()
-        return result if isinstance(result, dict) else {"result": str(result)}
-    except Exception as exc:
-        logger.exception(
-            "Failed to delete jira trigger",
-            extra={"trigger": trigger_id, "error": str(exc)}
         )
         return {"status": "FAILED", "error": str(exc)}
 

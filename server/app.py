@@ -12,7 +12,6 @@ from .config import get_settings
 from .logging_config import configure_logging, logger
 from .routes import api_router
 from .services import (
-    get_calendar_watcher,
     get_important_email_watcher,
     get_trigger_scheduler,
 )
@@ -26,12 +25,9 @@ async def lifespan(app: FastAPI):
     
     scheduler = get_trigger_scheduler()
     email_watcher = get_important_email_watcher()
-    jira_watcher = get_important_issue_watcher()
-    #calendar_watcher = get_calendar_watcher()
 
     await scheduler.start()
     await email_watcher.start()
-    await jira_watcher.start()
     
 
     logger.info("All services are active.")
@@ -42,7 +38,6 @@ async def lifespan(app: FastAPI):
     
     await scheduler.stop()
     await email_watcher.stop()
-    await jira_watcher.stop()
 
 
 def register_exception_handlers(app: FastAPI) -> None:

@@ -25,5 +25,5 @@ async def jira_status(payload: JiraStatusPayload) -> JSONResponse:
 @router.post("/disconnect")
 # Disconnect Jira account and clear cached profile data
 async def jira_disconnect(payload: JiraDisconnectPayload) -> JSONResponse:
-    return jira_disconnect_account(payload)
+    return await jira_disconnect_account(payload)
 
