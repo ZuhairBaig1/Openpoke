@@ -14,7 +14,6 @@ from .routes import api_router
 from .services import (
     get_calendar_watcher,
     get_important_email_watcher,
-    get_important_issue_watcher,
     get_trigger_scheduler,
 )
 

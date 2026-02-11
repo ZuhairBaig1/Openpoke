@@ -171,3 +171,100 @@ def parse_jira_search_response(
         if processed:
             issues.append(processed)
     return issues
+
+
+@dataclass(frozen=True)
+class ProcessedJiraEvent:
+    """Normalized representation of a Jira trigger."""
+
+    type: str  # "issue_created", "project_created", "issue_updated", "unknown"
+    title: str
+    key: str
+    description: Optional[str] = None
+    reporter: Optional[str] = None
+    assignee: Optional[str] = None
+    url: Optional[str] = None
+    status: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+def build_processed_event(data: Dict[str, Any]) -> Optional[ProcessedJiraEvent]:
+    # Check for Updated Issue Payload (Check this FIRST to distinguish from creation)
+    if "updated_fields" in data and "issue_key" in data:
+         return ProcessedJiraEvent(
+            type="issue_updated",
+            title=data.get("summary", "Untitled Issue"),
+            key=data.get("issue_key", "UNKNOWN-KEY"),
+            description=data.get("description"),
+            reporter=data.get("reporter"),
+            assignee=data.get("assignee"),
+            raw_data=data
+        )
+
+    # Check for New Issue Payload
+    if "issue_key" in data and "summary" in data and "project_name" not in data:
+        return ProcessedJiraEvent(
+            type="issue_created",
+            title=data.get("summary", "Untitled Issue"),
+            key=data.get("issue_key", "UNKNOWN-KEY"),
+            description=data.get("description"),
+            reporter=data.get("reporter"),
+            assignee=data.get("assignee"),
+            url=None,
+            raw_data=data
+        )
+
+    # Check for New Project Payload
+    if "project_key" in data and "project_name" in data:
+        return ProcessedJiraEvent(
+            type="project_created",
+            title=data.get("project_name", "Untitled Project"),
+            key=data.get("project_key", "UNKNOWN-KEY"),
+            reporter=data.get("lead_name"),
+            raw_data=data
+        )
+
+    return None
+
+
+def format_event_alert(event: ProcessedJiraEvent) -> str:
+    if event.type == "issue_created":
+        alert_text = f"**Jira Alert: New Issue Created**\n"
+        alert_text += f"**{event.key}**: {event.title}\n"
+        if event.reporter:
+            alert_text += f"**Reporter**: {event.reporter}\n"
+        if event.assignee:
+            alert_text += f"**Assignee**: {event.assignee}\n"
+        if event.description:
+            desc = event.description
+            if len(desc) > 200:
+                desc = desc[:197] + "..."
+            alert_text += f"**Description**: {desc}\n"
+            
+        return alert_text + "---\nSource: Jira"
+
+    if event.type == "project_created":
+        alert_text = f"**Jira Alert: New Project Created**\n"
+        alert_text += f"**{event.key}**: {event.title}\n"
+        if event.reporter:
+            alert_text += f"**Lead**: {event.reporter}\n"
+
+        return alert_text + "---\nSource: Jira"
+    
+    if event.type == "issue_updated":
+        alert_text = f"**Jira Alert: Issue Updated**\n"
+        alert_text += f"**{event.key}**: {event.title}\n"
+        if event.raw_data and "updated_fields" in event.raw_data:
+             updated_fields = event.raw_data.get("updated_fields", {})
+             if isinstance(updated_fields, dict):
+                 alert_text += "**Changes:**\n"
+                 for field, value in updated_fields.items():
+                     display_val = str(value)
+                     # Truncate long values
+                     if len(display_val) > 100:
+                         display_val = display_val[:97] + "..."
+                     alert_text += f"- **{field}**: {display_val}\n"
+
+        return alert_text + "---\nSource: Jira"
+
+    return f"**Jira Alert**\nUnknown Event: {event.key}\n---\nSource: Jira"

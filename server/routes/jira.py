@@ -13,7 +13,7 @@ router = APIRouter(prefix="/jira", tags=["jira"])
 @router.post("/connect")
 # Initiate Jira OAuth connection flow through Composio
 async def jira_connect(payload: JiraConnectPayload, settings: Settings = Depends(get_settings)) -> JSONResponse:
-    return jira_initiate_connect(payload, settings)
+    return await jira_initiate_connect(payload, settings)
 
 
 @router.post("/status")

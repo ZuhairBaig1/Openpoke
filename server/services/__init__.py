@@ -21,15 +21,16 @@ from .gmail import (
     initiate_connect,
 )
 from .jira import (
-    JiraSeenStore,
-    ImportantIssueWatcher,
-    classify_jira_changes,
     execute_jira_tool,
     jira_fetch_status,
     get_active_jira_user_id,
     jira_initiate_connect,
-    get_important_issue_watcher,
     jira_disconnect_account,
+    get_jira_watcher,
+    JiraWatcher,
+    enable_jira_trigger,
+    delete_jira_trigger,
+    normalize_trigger_response,
 )
 
 from .calendar import (
@@ -86,4 +87,5 @@ __all__ = [
     "ProcessedCalendarEvent",
     "build_processed_event",
     "format_event_alert",
+
 ]

@@ -131,7 +131,7 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
 
 # --- Main API Methods ---
 
-def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
+async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = (
     (payload.auth_config_id or "").strip()
     or (settings.composio_jira_auth_config_id or "").strip()
@@ -158,8 +158,24 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
         
 
     try:
-
         client = _get_composio_client(settings)
+        
+        # Check if already connected
+        items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"], statuses=["ACTIVE"])
+        data = getattr(items, "data", None) or (items.get("data") if isinstance(items, dict) else None)
+        
+        if data and len(data) > 0:
+            logger.info(f"Jira account already connected for user_id: {user_id}")
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    "ok": True,
+                    "already_connected": True,
+                    "user_id": user_id,
+                    "status": "ACTIVE"
+                }
+            )
+
         req = client.connected_accounts.initiate(
             user_id=user_id,
             auth_config_id=auth_config_id,
@@ -171,6 +187,10 @@ def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings) -> JS
                 }
             }
         )
+
+        from ...services import get_jira_watcher
+        jira_watcher_instance = get_jira_watcher()
+        await jira_watcher_instance.start_project_trigger()
 
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -246,7 +266,7 @@ def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
         logger.exception("Jira status check failed")
         return error_response("Failed to fetch Jira status", status_code=500, detail=str(exc))
 
-def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
+async def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
     """Disconnects account with explicit error logging."""
     connection_id = _normalized(payload.connection_id) or _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
@@ -269,6 +289,10 @@ def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONResponse:
                 cid = getattr(entry, "id", None)
                 if cid:
                     try:
+                        from ...services import get_jira_watcher
+                        jira_watcher_instance = get_jira_watcher()
+                        await jira_watcher_instance.stop_project_trigger()
+                        
                         client.connected_accounts.delete(cid)
                         removed_ids.append(cid)
                     except Exception as exc:
@@ -309,3 +333,106 @@ def execute_jira_tool(
     except Exception as exc:
         logger.exception("Jira tool execution failed", extra={"tool": tool_name, "user_id": composio_user_id})
         raise RuntimeError(f"{tool_name} failed: {exc}") from exc
+
+def enable_jira_trigger(trigger_name: str, user_id: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    sanitized_user_id = _normalized(user_id)
+    if not sanitized_user_id:
+        return {"status": "FAILED", "error": "Missing user_id"}
+
+    try:
+        client = _get_composio_client()
+        result = client.triggers.create(
+            slug=trigger_name.upper(),
+            user_id=sanitized_user_id,
+            trigger_config=arguments
+        )
+
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        return result if isinstance(result, dict) else {"result": str(result)}
+
+    except Exception as exc:
+        logger.exception(
+            "Failed to enable jira trigger",
+            extra={"trigger": trigger_name, "user_id": sanitized_user_id, "error": str(exc)}
+        )
+        return {"status": "FAILED", "error": str(exc)}
+
+
+def delete_jira_trigger(trigger_id: str):
+    sanitized_trigger_id = _normalized(trigger_id)
+    if not sanitized_trigger_id:
+        return {"status": "FAILED", "error": "Missing trigger_id"}
+    
+    try:
+        client = _get_composio_client()
+        result = client.triggers.delete(sanitized_trigger_id)
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        return result if isinstance(result, dict) else {"result": str(result)}
+    except Exception as exc:
+        logger.exception(
+            "Failed to delete jira trigger",
+            extra={"trigger": trigger_id, "error": str(exc)}
+        )
+        return {"status": "FAILED", "error": str(exc)}
+
+def normalize_trigger_response(result: Any) -> Dict[str, Any]:
+    if isinstance(result, dict):
+        if "payload" in result:
+            result = result["payload"]
+        elif "data" in result:
+            result = result["data"]
+    else:
+        for attr in ("payload", "data"):
+            val = getattr(result, attr, None)
+            if val is not None:
+                result = val
+                break
+                
+    return _base_normalize(result)
+
+def _base_normalize(result: Any) -> Dict[str, Any]:
+    if result is None:
+        return {}
+
+    payload_dict: Optional[Dict[str, Any]] = None
+
+    for method in ("model_dump", "dict"):
+        if hasattr(result, method):
+            try:
+                payload_dict = getattr(result, method)()
+                break
+            except Exception:
+                continue
+
+    if payload_dict is None and hasattr(result, "model_dump_json"):
+        try:
+            payload_dict = json.loads(result.model_dump_json())
+        except Exception:
+            pass
+
+    if payload_dict is None:
+        if isinstance(result, dict):
+            payload_dict = result
+        elif isinstance(result, list):
+            payload_dict = {"items": result}
+        elif isinstance(result, str):
+            try:
+                payload_dict = json.loads(result)
+            except json.JSONDecodeError:
+                payload_dict = {"raw_content": result}
+        else:
+            payload_dict = {"repr": str(result)}
+
+    return _sanitize_dict_values(payload_dict)
+
+def _sanitize_dict_values(data: Any) -> Any:
+    """Recursively converts non-JSON serializable objects into strings."""
+    if isinstance(data, dict):
+        return {k: _sanitize_dict_values(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_dict_values(i) for i in data]
+    elif isinstance(data, (datetime, UUID)):
+        return str(data)
+    return data

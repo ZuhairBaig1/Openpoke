@@ -6,12 +6,13 @@ from .client import (
     jira_fetch_status,
     get_active_jira_user_id,
     jira_initiate_connect,
+    enable_jira_trigger,
+    delete_jira_trigger,
+    normalize_trigger_response,
 )
 
-from .importance_classifier import classify_jira_changes
-from .importance_watcher import ImportantIssueWatcher, get_important_issue_watcher
+from .jira_watcher import JiraWatcher, get_jira_watcher
 from .processing import JiraContentCleaner, ProcessedJiraIssue, parse_jira_search_response
-from .seen_store import JiraSeenStore
 
 __all__ = [
     "execute_jira_tool",
@@ -22,8 +23,9 @@ __all__ = [
     "JiraContentCleaner",
     "ProcessedJiraIssue",
     "parse_jira_search_response",
-    "JiraSeenStore",
-    "get_important_issue_watcher",
-    "classify_jira_changes",
-    "ImportantIssueWatcher"
+    "get_jira_watcher",
+    "enable_jira_trigger",
+    "delete_jira_trigger",
+    "JiraWatcher",
+    "normalize_trigger_response"
 ]

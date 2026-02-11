@@ -91,47 +91,17 @@ def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> An
         return {"error": str(exc)}
 
 
-def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict) -> Dict[str, Any]:
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
         return {"status": "FAILED", "error": "Missing user_id"}
 
     try:
         client = _get_composio_client()
-        # REPLACEMENT: Use list() instead of toolset.get_connected_accounts()
-        response = client.connected_accounts.list(user_ids=[sanitized_user_id], statuses=["ACTIVE"])
-        
-        accounts = []
-        if hasattr(response, "data"):
-            accounts = response.data
-        elif isinstance(response, dict):
-            accounts = response.get("data", [])
-        elif isinstance(response, list):
-            accounts = response
-        
-        google_account = next(
-            (
-                acc for acc in accounts 
-                if (
-                    "googlecalendar" in str(getattr(acc, "appName", "")).lower() 
-                    or "googlecalendar" in str(getattr(acc, "appUniqueId", "")).lower()
-                )
-            ), 
-            None
-        )
-
-        if not google_account:
-            return {"status": "FAILED", "error": "Google Calendar account not found"}
-
-        account_id = getattr(google_account, "id", None)
-        if not account_id and isinstance(google_account, dict):
-            account_id = google_account.get("id")
-            
-        # REPLACEMENT: Use client.triggers directly
-        result = client.triggers.enable(
-            name=trigger_name,
-            connected_account_id=account_id,
-            config=arguments
+        result = client.triggers.create(
+            slug=trigger_name.upper(),
+            user_id=sanitized_user_id,
+            trigger_config=arguments
         )
 
         if hasattr(result, "model_dump"):
