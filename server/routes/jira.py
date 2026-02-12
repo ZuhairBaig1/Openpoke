@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from ..config import Settings, get_settings
@@ -18,8 +18,8 @@ async def jira_connect(payload: JiraConnectPayload, settings: Settings = Depends
 
 @router.post("/status")
 # Check the current Jira connection status and user information
-async def jira_status(payload: JiraStatusPayload) -> JSONResponse:
-    return await jira_fetch_status(payload)
+async def jira_status(payload: JiraStatusPayload, background_tasks: BackgroundTasks) -> JSONResponse:
+    return await jira_fetch_status(payload, background_tasks)
 
 
 @router.post("/disconnect")

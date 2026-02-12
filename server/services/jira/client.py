@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from fastapi import status
+from fastapi import status, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from ...config import Settings, get_settings
@@ -66,7 +66,7 @@ def _get_composio_client(settings: Optional[Settings] = None):
 
 def _extract_jira_details(obj: Any) -> Dict[str, Optional[str]]:
     """Extract identity prioritizing accountId over email."""
-    details = {"email": None, "accountId": None, "displayName": None}
+    details: Dict[str, Optional[str]] = {"email": None, "accountId": None, "displayName": None}
     if obj is None:
         return details
 
@@ -214,7 +214,7 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
         return error_response(f"Failed to initiate Jira connect", status_code=500, detail=str(exc))
 
-async def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
+async def jira_fetch_status(payload: JiraStatusPayload, background_tasks: Optional[BackgroundTasks] = None) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
     
@@ -244,11 +244,11 @@ async def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
         status_value = "UNKNOWN"
         connected = False
         profile = None
-        details = {"email": None, "accountId": None, "displayName": None}
+        details: Dict[str, Optional[str]] = {"email": None, "accountId": None, "displayName": None}
 
         if account:
             status_value = getattr(account, "status", None) or (account.get("status") if isinstance(account, dict) else "UNKNOWN")
-            connected = status_value.upper() in {"CONNECTED", "ACTIVE", "SUCCESSFUL"}
+            connected = str(status_value).upper() in {"CONNECTED", "ACTIVE", "SUCCESSFUL"}
             details = _extract_jira_details(account)
 
         if connected and user_id:
@@ -258,11 +258,15 @@ async def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
                 for k in details:
                     if not details[k]: details[k] = p_details[k]
                 
-            # Trigger automatic initialization of all project and issue triggers
+            # Trigger automatic initialization of all project and issue triggers in background
             try:
                 from .jira_watcher import get_jira_watcher
                 watcher = get_jira_watcher()
-                await watcher.ensure_all_triggers_initialized(user_id)
+                if background_tasks:
+                    logger.info(f"Offloading trigger initialization to background for user: {user_id}")
+                    background_tasks.add_task(watcher.ensure_all_triggers_initialized, user_id)
+                else:
+                    await watcher.ensure_all_triggers_initialized(user_id)
             except Exception as trigger_exc:
                 logger.error(f"Failed to auto-initialize triggers in jira_fetch_status: {trigger_exc}")
 

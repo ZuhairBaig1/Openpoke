@@ -18,17 +18,17 @@ class JiraWatcher:
         self._issue_update_dict: Dict[str, bool] = {}
         self.project_enabled: bool = False
 
-    async def start_project_trigger(self) -> None:
+    async def start_project_trigger(self, user_id: str) -> None:
         async with self._lock:
             if self.project_enabled:
                 return
             
-            user_id = get_active_jira_user_id()
             if not user_id:
-                logger.warning("Jira not connected; skipping trigger registration, in jira_watcher.py")
+                logger.warning("No user_id provided; skipping trigger registration in jira_watcher.py")
                 return
 
             try:
+                logger.info(f"Registering JIRA_NEW_PROJECT_TRIGGER for user: {user_id}")
                 result = enable_jira_trigger(
                     "JIRA_NEW_PROJECT_TRIGGER",
                     user_id,
@@ -46,17 +46,17 @@ class JiraWatcher:
             except Exception as e:
                 logger.error(f"Failed to register jira project trigger: {e}, in jira_watcher.py")
 
-    async def start_issue_trigger(self, project_key: str) -> None:
+    async def start_issue_trigger(self, project_key: str, user_id: str) -> None:
         async with self._lock:
             if self._issue_enabled_dict.get(project_key):
                 return
             
-            user_id = get_active_jira_user_id()
             if not user_id:
-                logger.warning("Jira not connected; skipping trigger registration. in jira_watcher.py")
+                logger.warning(f"No user_id provided; skipping issue trigger registration for {project_key}")
                 return
 
             try:
+                logger.info(f"Registering JIRA_NEW_ISSUE_TRIGGER for {project_key} (user: {user_id})")
                 result = enable_jira_trigger(
                     "JIRA_NEW_ISSUE_TRIGGER",
                     user_id,
@@ -75,17 +75,17 @@ class JiraWatcher:
                 logger.error(f"Failed to register jira issue trigger, in jira_watcher.py: {e}")
 
 
-    async def start_update_issue_trigger(self, project_key: str) -> None:
+    async def start_update_issue_trigger(self, project_key: str, user_id: str) -> None:
         async with self._lock:
             if self._issue_update_dict.get(project_key):
                 return
             
-            user_id = get_active_jira_user_id()
             if not user_id:
-                logger.warning("Jira not connected; skipping trigger registration, in jira_watcher.py")
+                logger.warning(f"No user_id provided; skipping update trigger registration for {project_key}")
                 return
 
             try:
+                logger.info(f"Registering JIRA_UPDATED_ISSUE_TRIGGER for {project_key} (user: {user_id})")
                 result = enable_jira_trigger(
                     "JIRA_UPDATED_ISSUE_TRIGGER",
                     user_id,
@@ -108,7 +108,7 @@ class JiraWatcher:
         This is called after a successful OAuth connection is detected.
         """
         # 1. Start Project Trigger
-        await self.start_project_trigger()
+        await self.start_project_trigger(user_id)
 
         # 2. Get all projects and start issue/update triggers for each
         try:
@@ -133,15 +133,15 @@ class JiraWatcher:
                 project_list = data.get("data", {}).get("values", []) or data.get("values", []) or []
             else:
                 project_list = []
-
+ 
             logger.info(f"Found {len(project_list)} projects to initialize: {[p.get('key') for p in project_list]}")
-
+ 
             for project in project_list:
                 project_key = project.get("key")
                 if project_key:
                     logger.info(f"Auto-starting triggers for project: {project_key}")
-                    await self.start_issue_trigger(project_key)
-                    await self.start_update_issue_trigger(project_key)
+                    await self.start_issue_trigger(project_key, user_id)
+                    await self.start_update_issue_trigger(project_key, user_id)
                     
         except Exception as e:
             logger.error(f"Failed to initialize all jira triggers: {e}", exc_info=True)
@@ -162,8 +162,11 @@ class JiraWatcher:
         runtime = resolve_interaction_runtime()
         await runtime.handle_agent_message(alert_text)
 
-        await self.start_issue_trigger(project.key)
-        await self.start_update_issue_trigger(project.key)
+        # Use the global user id if available
+        user_id = get_active_jira_user_id() or ""
+
+        await self.start_issue_trigger(project.key, user_id)
+        await self.start_update_issue_trigger(project.key, user_id)
 
     async def process_issue_payload(self, payload: Dict[str, Any]) -> None:
         data = normalize_trigger_response(payload)
