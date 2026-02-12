@@ -31,8 +31,12 @@ def _set_active_jira_user_id(user_id: Optional[str]) -> None:
     sanitized = _normalized(user_id)
     with _ACTIVE_USER_ID_JIRA_LOCK:
         global _ACTIVE_USER_ID_JIRA
-        _ACTIVE_USER_ID_JIRA = sanitized or None
-    logger.info(f"Active Jira user ID set to: {sanitized}")
+        _ACTIVE_USER_ID_JIRA = sanitized if sanitized else None
+    
+    if _ACTIVE_USER_ID_JIRA:
+        logger.info(f"Active Jira user ID set to: {_ACTIVE_USER_ID_JIRA}")
+    else:
+        logger.info("Active Jira user ID cleared")
 
 def get_active_jira_user_id() -> Optional[str]:
     with _ACTIVE_USER_ID_JIRA_LOCK:
@@ -188,38 +192,7 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
             }
         )
 
-        from ...services import get_jira_watcher
-        jira_watcher_instance = get_jira_watcher()
-        await jira_watcher_instance.start_project_trigger()
 
-        all_active_projects = execute_jira_tool(
-            "JIRA_GET_ALL_PROJECTS",
-            user_id,
-            arguments={
-                "action": "view",
-                "query": None,
-                "maxResults": 50,
-                "startAt": 0,
-                "orderBy": "name",
-                "expand": None,
-                "status": None,
-                "categoryId": None,
-                "properties": None,
-                "name": None
-            }
-
-        )
-
-        project_list = all_active_projects.get("data", {}).get("data", {}).get("values", [])
-
-        for project in project_list:
-            project_key = project.get("key")
-            
-            await jira_watcher_instance.start_issue_trigger(project_key)
-            logger.info(f"Jira issue trigger started for project: {project_key}, in jira/client.py ")
-
-            await jira_watcher_instance.start_update_issue_trigger(project_key)
-            logger.info(f"Jira issue update trigger started for project: {project_key}, in jira/client.py")
 
 
 
@@ -241,9 +214,14 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
         logger.exception("Jira connect initiation failed", extra={"user_id": user_id})
         return error_response(f"Failed to initiate Jira connect", status_code=500, detail=str(exc))
 
-def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
+async def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
+    
+    # Set the active user ID immediately so background trigger initialization can see it
+    if user_id:
+        _set_active_jira_user_id(user_id)
+
     try:
         client = _get_composio_client()
         account: Any = None
@@ -280,8 +258,14 @@ def jira_fetch_status(payload: JiraStatusPayload) -> JSONResponse:
                 for k in details:
                     if not details[k]: details[k] = p_details[k]
                 
-        logger.info(f"Setting active Jira user_id using _set_active_jira_user_id:- {user_id}")    
-        _set_active_jira_user_id(user_id)
+            # Trigger automatic initialization of all project and issue triggers
+            try:
+                from .jira_watcher import get_jira_watcher
+                watcher = get_jira_watcher()
+                await watcher.ensure_all_triggers_initialized(user_id)
+            except Exception as trigger_exc:
+                logger.error(f"Failed to auto-initialize triggers in jira_fetch_status: {trigger_exc}")
+
         logger.info(f"connected:- {connected}, status_value:- {status_value}, user_id:- {user_id}, jira_account_id:- {details['accountId']}, email:- {details['email']}, display_name:- {details['displayName']}")
         return JSONResponse({
             "ok": True,

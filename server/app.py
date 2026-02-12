@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from .config import get_settings
 from .logging_config import configure_logging, logger
 from .routes import api_router
+from .routes.webhook import router as webhook_router # Import webhook router
 from .services import (
     get_important_email_watcher,
     get_trigger_scheduler,
@@ -90,5 +91,6 @@ app.add_middleware(
 
 register_exception_handlers(app)
 app.include_router(api_router)
+app.include_router(webhook_router) # Include at root so /webhook works
 
 __all__ = ["app"]

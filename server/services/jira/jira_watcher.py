@@ -1,7 +1,6 @@
 import asyncio
-from datetime import datetime
 from typing import Any, Dict, Optional, TYPE_CHECKING
-from .client import enable_jira_trigger, get_active_jira_user_id, normalize_trigger_response
+from .client import enable_jira_trigger, get_active_jira_user_id, normalize_trigger_response, execute_jira_tool
 from .processing import build_processed_event, format_event_alert
 from ...logging_config import logger
 
@@ -37,10 +36,13 @@ class JiraWatcher:
                 )
 
                 normalized = normalize_trigger_response(result)
+                logger.info(f"Jira project trigger registration result: {result}")
                 
-                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"] or normalized.get("trigger_id"):
                     self.project_enabled = True
                     logger.info("Jira project trigger registered successfully, in jira_watcher.py")
+                else:
+                    logger.error(f"Jira project trigger NOT enabled. Status: {normalized.get('status')}")
             except Exception as e:
                 logger.error(f"Failed to register jira project trigger: {e}, in jira_watcher.py")
 
@@ -62,10 +64,13 @@ class JiraWatcher:
                 )
                 
                 normalized = normalize_trigger_response(result)
+                logger.info(f"Jira issue trigger registration result for {project_key}: {result}")
                 
-                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"] or normalized.get("trigger_id"):
                     self._issue_enabled_dict[project_key] = True
                     logger.info(f"Jira new issue trigger registered successfully for project {project_key}. in jira_watcher.py")
+                else:
+                    logger.error(f"Jira issue trigger NOT enabled for {project_key}. Status: {normalized.get('status')}")
             except Exception as e:
                 logger.error(f"Failed to register jira issue trigger, in jira_watcher.py: {e}")
 
@@ -89,11 +94,57 @@ class JiraWatcher:
                 
                 normalized = normalize_trigger_response(result)
                 
-                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"] or normalized.get("trigger_id"):
                     self._issue_update_dict[project_key] = True
                     logger.info(f"Jira issue update trigger registered successfully for project {project_key}, in jira_watcher.py")
             except Exception as e:
                 logger.error(f"Failed to update jira issue trigger, in jira_watcher.py: {e}")
+
+
+
+    async def ensure_all_triggers_initialized(self, user_id: str) -> None:
+        """
+        Ensures that the project trigger and issue triggers for all existing projects are started.
+        This is called after a successful OAuth connection is detected.
+        """
+        # 1. Start Project Trigger
+        await self.start_project_trigger()
+
+        # 2. Get all projects and start issue/update triggers for each
+        try:
+            logger.info(f"Fetching all projects to initialize triggers for user: {user_id}")
+            all_active_projects = execute_jira_tool(
+                "JIRA_GET_ALL_PROJECTS",
+                user_id,
+                arguments={
+                    "maxResults": 100,
+                    "startAt": 0,
+                    "orderBy": "name"
+                }
+            )
+            
+            # The structure of Composio response for JIRA_GET_ALL_PROJECTS:
+            # result['data'] usually contains the actual response from Jira
+            data = all_active_projects.get("data", {})
+            if isinstance(data, list):
+                project_list = data
+            elif isinstance(data, dict):
+                # Sometimes it might be wrapped in another 'data' or 'values' key
+                project_list = data.get("data", {}).get("values", []) or data.get("values", []) or []
+            else:
+                project_list = []
+
+            logger.info(f"Found {len(project_list)} projects to initialize: {[p.get('key') for p in project_list]}")
+
+            for project in project_list:
+                project_key = project.get("key")
+                if project_key:
+                    logger.info(f"Auto-starting triggers for project: {project_key}")
+                    await self.start_issue_trigger(project_key)
+                    await self.start_update_issue_trigger(project_key)
+                    
+        except Exception as e:
+            logger.error(f"Failed to initialize all jira triggers: {e}", exc_info=True)
 
 
 

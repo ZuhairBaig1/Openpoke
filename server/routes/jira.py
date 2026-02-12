@@ -19,7 +19,7 @@ async def jira_connect(payload: JiraConnectPayload, settings: Settings = Depends
 @router.post("/status")
 # Check the current Jira connection status and user information
 async def jira_status(payload: JiraStatusPayload) -> JSONResponse:
-    return jira_fetch_status(payload)
+    return await jira_fetch_status(payload)
 
 
 @router.post("/disconnect")
