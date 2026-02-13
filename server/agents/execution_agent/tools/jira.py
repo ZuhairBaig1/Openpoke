@@ -692,6 +692,24 @@ _SCHEMAS: List[Dict[str, Any]] = [
             "additionalProperties": False
         }
     }
+},
+{
+    "type": "function",
+    "function": {
+        "name": "jira_get_current_user",
+        "description": "Retrieve details of the currently authenticated Jira user, optionally expanding specific properties like groups or application roles.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "expand": {
+                    "type": "string",
+                    "description": "Comma-separated list of user properties to expand (e.g., 'groups,applicationRoles')."
+                }
+            },
+            "required": [],
+            "additionalProperties": False
+        }
+    }
 }
 ]
 
@@ -1096,6 +1114,23 @@ def jira_delete_comment(
     logger.info(f"Arguments for jira_delete_comment: {arguments}")
     return _execute("jira_delete_comment",uid,arguments, version="20260203_00")
 
+def jira_get_current_user(
+    expand: str = "groups,applicationRoles",
+) -> Dict[str, Any]:
+    arguments: Dict[str, Any] = {}
+    if expand:
+        arguments["expand"] = expand
+        
+    logger.info(f"jira_get_current_user called with expand: {expand}")
+    uid = get_active_jira_user_id()
+    
+    if not uid: 
+        return {"error": "Jira not connected. Please connect Jira in settings first."}
+        
+    logger.info(f"Arguments for jira_get_current_user: {arguments}")
+    
+    return _execute("JIRA_GET_CURRENT_USER", uid, arguments, version="20260203_00")
+
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
     return {
         "jira_create_issue": jira_create_issue,
@@ -1112,7 +1147,8 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
         "jira_delete_comment": jira_delete_comment,
         "jira_list_issue_comments": jira_list_issue_comments,
         "jira_get_issue": jira_get_issue,
-        "jira_search_for_issues_using_jql_post": jira_search_for_issues_using_jql_post
+        "jira_search_for_issues_using_jql_post": jira_search_for_issues_using_jql_post,
+        "jira_get_current_user": jira_get_current_user
     }
 
 __all__ = ["build_registry", "get_schemas"]
