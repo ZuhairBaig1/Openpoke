@@ -50,8 +50,7 @@ _SYSTEM_PROMPT = (
     "user's plans, requires a prompt decision or action, is a security-sensitive OTP or login "
     "notice, or contains high-priority updates (e.g. interviews). "
     "Surface new event invitations immediately as they require a decision. "
-    "However, specifically IGNORE event state changes (RSVP updates, location changes, meeting updates) "
-    "and reminders about events starting soon, as these are handled by other specialized watchers. "
+    "All calendar event invites, updates, confirmation, cancellation or deletion gmail messages, are of the highest priority, not to be neglected at all"
     "Also ignore order confirmations, newsletters, generic receipts, and low-impact status "
     "notifications. When important, craft a brief summary explaining why it matters."
 )

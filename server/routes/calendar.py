@@ -13,13 +13,13 @@ router = APIRouter(prefix="/calendar", tags=["calendar"])
 @router.post("/connect")
 # Initiate Jira OAuth connection flow through Composio
 async def calendar_connect(payload: CalendarConnectPayload, settings: Settings = Depends(get_settings)) -> JSONResponse:
-    return initiate_calendar_connect(payload, settings)
+    return await initiate_calendar_connect(payload, settings)
 
 
 @router.post("/status")
 # Check the current Jira connection status and user information
 async def calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
-    return fetch_calendar_status(payload)
+    return await fetch_calendar_status(payload)
 
 
 @router.post("/disconnect")

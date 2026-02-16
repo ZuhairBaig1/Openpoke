@@ -22,14 +22,12 @@ def _headers(*, api_key: Optional[str] = None) -> Dict[str, str]:
     if not key:
         raise OpenRouterError("Missing OpenRouter API key, in _headers inside openrouter client")
     
-    logger.info("Received openrouter api_key, in _headers inside openrouter client")
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
 
-    logger.info("Returning headers, in _headers inside openrouter client")
     return headers
 
 
@@ -61,7 +59,6 @@ async def request_chat_completion(
 ) -> Dict[str, Any]:
     """Request a chat completion and return the raw JSON payload."""
 
-    logger.info(f"Before creating payload, in request_chat_completion inside openrouter client, model :- {model}")
     payload: Dict[str, object] = {
         "model": model,
         "messages": _build_messages(messages, system),
@@ -70,12 +67,10 @@ async def request_chat_completion(
     if tools:
         payload["tools"] = tools
 
-    logger.info("After creating payload, in request_chat_completion inside openrouter client")
     url = f"{base_url.rstrip('/')}/chat/completions"
 
     async with httpx.AsyncClient() as client:
         try:
-            logger.info("Before calling openrouter, in request_chat_completion inside openrouter client")
             response = await client.post(
                 url,
                 headers=_headers(api_key=api_key),
@@ -86,7 +81,6 @@ async def request_chat_completion(
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 _handle_response_error(exc)
-            logger.info("Response generated, returning openrouter raw json output, in request_chat_completion inside openrouter client")
             return response.json()
         except httpx.HTTPStatusError as exc:  # pragma: no cover - handled above
             _handle_response_error(exc)

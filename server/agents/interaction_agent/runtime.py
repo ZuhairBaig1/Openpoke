@@ -68,9 +68,6 @@ class InteractionAgentRuntime:
         logger.info(f"user message: {user_message}, in execute (for user messages) inside interaction runtime")
 
         try:
-            # formatting user input with history
-            user_id = get_active_jira_user_id()
-            logger.info(f"USER_ID: {user_id}, in execute (for user messages) inside interaction runtime")
             transcript_before = self._load_conversation_transcript()
             self.conversation_log.record_user_message(user_message)
 
@@ -79,15 +76,9 @@ class InteractionAgentRuntime:
                 user_message, transcript_before, message_type="user"
             )
 
-            logger.info("Processing user message through interaction agent, in interaction runtime right now")
-
-            # providing formatted message to interaction loop
-            logger.info("before executing _run_interaction_loop, in interaction runtime right now")
             summary = await self._run_interaction_loop(system_prompt, messages)
-            logger.info("executed _run_interaction_loop, in interaction runtime right now")
 
             final_response = self._finalize_response(summary)
-            logger.info("_finalize_response executed, in interaction runtime right now")
 
             if final_response and not summary.user_messages:
                 self.conversation_log.record_reply(final_response)
@@ -121,16 +112,12 @@ class InteractionAgentRuntime:
                 agent_message, transcript_before, message_type="agent"
             )
 
-            logger.info("Processing execution agent results, in handle_agent_message (for agent messages) inside interaction runtime")
             summary = await self._run_interaction_loop(system_prompt, messages)
-            logger.info("executed _run_interaction_loop, in handle_agent_message (for agent messages) inside interaction runtime")
 
             final_response = self._finalize_response(summary)
-            logger.info("_finalize_response executed, in handle_agent_message (for agent messages) inside interaction runtime")
 
             if final_response and not summary.user_messages:     #this is just loging 
                 self.conversation_log.record_reply(final_response)
-                logger.info("recorded reply, in handle_agent_message (for agent messages) inside interaction runtime")
 
             return InteractionResult(
                 success=True,
@@ -157,15 +144,12 @@ class InteractionAgentRuntime:
         summary = _LoopSummary()   #final output schema
 
         for iteration in range(self.MAX_TOOL_ITERATIONS):
-            logger.info(f"Before calling _make_llm_call, in _run_interaction_loop inside interaction runtime, message received: {messages}")
             try:
                 response = await self._make_llm_call(system_prompt, messages)  #llm call management agent
             except Exception as e:
                 logger.error("Interaction agent failed", exc_info=True)
 
-            logger.info("After calling _make_llm_call, in _run_interaction_loop inside interaction runtime")
             assistant_message = self._extract_assistant_message(response)  #return "messages" dict from OpenRouter API response structure
-            logger.info(f"After extracting llm output, in _run_interaction_loop inside interaction runtime, assistant message: {assistant_message}")
 
             assistant_content = (assistant_message.get("content") or "").strip()
             if assistant_content:
@@ -191,12 +175,10 @@ class InteractionAgentRuntime:
                 summary.tool_names.append(tool_call.name)
 
                 if tool_call.name == "send_message_to_agent":         # if this is an execution agent call, then call it
-                    logger.info("Tool call made to agent, in _run_interaction_loop inside interaction runtime")
                     agent_name = tool_call.arguments.get("agent_name")# whatagent to call
                     if isinstance(agent_name, str) and agent_name:    
                         summary.execution_agents.add(agent_name)
 
-                logger.info(f"before calling _execute_tool, in _run_interaction_loop inside interaction runtime, tool call: {tool_call}")
                 result = self._execute_tool(tool_call)                # execute agent, returns ToolResult obj
 
                 if result.user_message:                               # if execution agent / tool want to give direct message to user
@@ -216,7 +198,6 @@ class InteractionAgentRuntime:
         if not summary.user_messages and not summary.last_assistant_text:
             logger.warning("Interaction loop exited without assistant content, in _run_interaction_loop inside interaction runtime")
 
-        logger.info(f"Final output of _run_interaction_loop inside interaction runtime: {summary}")
         return summary           # return final llm loop output
 
     # Load conversation history, preferring summarized version if available
@@ -239,7 +220,6 @@ class InteractionAgentRuntime:
             "Interaction agent calling LLM",
             extra={"model": self.model, "tools": len(self.tool_schemas)},
         )
-        logger.info("before calling request_chat_completion, in _make_llm_call inside interaction runtime")
         return await request_chat_completion(
             model=self.model,
             messages=messages,
@@ -326,7 +306,6 @@ class InteractionAgentRuntime:
 
         try:
             self._log_tool_invocation(tool_call, stage="start")
-            logger.info(f"before calling handle_tool_call, in _execute_tool inside interaction runtime, tool name: {tool_call.name}, tool arguments: {tool_call.arguments}")
             result = handle_tool_call(tool_call.name, tool_call.arguments)
             logger.info(f"after calling handle_tool_call, in _execute_tool inside interaction runtime, tool result: {result}")
         except Exception as exc:  # pragma: no cover - defensive

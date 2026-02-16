@@ -309,6 +309,29 @@ _SCHEMAS: List[Dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "gmail_fetch_message_by_id",
+            "description": "Fetch a specific Gmail message by its message ID to retrieve full details including subject, sender, body, and attachments.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message_id": {
+                        "type": "string",
+                        "description": "The Gmail API message ID (hexadecimal string, typically 15-16 characters like '19b11732c1b578fd'). Must be obtained from Gmail API responses (e.g., List Messages, Search Messages). Do NOT use email subjects, dates, sender names, or custom identifiers.",
+                    },
+                    "format": {
+                        "type": "string",
+                        "description": "Format for message content: 'minimal' (ID/labels), 'full' (complete data), 'raw' (base64url string), 'metadata' (ID/labels/headers). Defaults to 'full'.",
+                        "enum": ["minimal", "full", "raw", "metadata"],
+                    },
+                },
+                "required": ["message_id"],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 _LOG_STORE = get_execution_agent_logs()
@@ -516,6 +539,21 @@ def gmail_search_people(
     return _execute("GMAIL_SEARCH_PEOPLE", composio_user_id, arguments)
 
 
+def gmail_fetch_message_by_id(
+    message_id: str,
+    format: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Fetch a specific Gmail message by its message ID."""
+    arguments: Dict[str, Any] = {
+        "message_id": message_id,
+        "format": format or "full",
+    }
+    composio_user_id = get_active_gmail_user_id()
+    if not composio_user_id:
+        return {"error": "Gmail not connected. Please connect Gmail in settings first."}
+    return _execute("GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID", composio_user_id, arguments)
+
+
 # Return Gmail tool callables
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:  # noqa: ARG001
     """Return Gmail tool callables."""
@@ -530,6 +568,7 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:  # noqa: A
         "gmail_get_people": gmail_get_people,
         "gmail_list_drafts": gmail_list_drafts,
         "gmail_search_people": gmail_search_people,
+        "gmail_fetch_message_by_id": gmail_fetch_message_by_id,
     }
 
 
@@ -545,4 +584,5 @@ __all__ = [
     "gmail_get_people",
     "gmail_list_drafts",
     "gmail_search_people",
+    "gmail_fetch_message_by_id",
 ]

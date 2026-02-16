@@ -73,35 +73,45 @@ def _get_composio_client(settings: Optional[Settings] = None):
 
 
 # --- Generic Tool Executor ---
-def execute_calendar_tool(action_name: str, user_id: str, arguments: dict) -> Any:
+def execute_calendar_tool(
+    tool_name: str, 
+    user_id: str, 
+    arguments: Optional[dict[str, Any]] = None,
+    version: Optional[str] = "20260212_00"
+) -> Any:
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
         return {"error": "Missing user_id"}
 
     try:
         client = _get_composio_client()
+        prepared_arguments = arguments or {}
+        logger.info(f"Executing calendar tool: {tool_name} for user: {sanitized_user_id}, version: {version}, arguments: {prepared_arguments}")
         result = client.client.tools.execute(
-            tool_name=action_name,  # Updated from action_name kwarg to tool_name
+            tool_name.upper(),
             user_id=sanitized_user_id,
-            arguments=arguments
+            arguments=prepared_arguments,
+            version=version
         )
+        logger.info(f"Calendar tool executed: {tool_name} for user: {sanitized_user_id}, arguments: {prepared_arguments}, result: {result}")
         return _normalize_tool_response(result)
     except Exception as exc:
         logger.error(f"Tool execution failed: {exc}")
         return {"error": str(exc)}
 
 
-def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict) -> Dict[str, Any]:
+def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: Optional[dict[str, Any]] = None) -> Dict[str, Any]:
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
-        return {"status": "FAILED", "error": "Missing user_id"}
+        return {"error": "Missing user_id"}
 
     try:
         client = _get_composio_client()
+        prepared_arguments = arguments or {}
         result = client.triggers.create(
             slug=trigger_name.upper(),
             user_id=sanitized_user_id,
-            trigger_config=arguments
+            trigger_config=prepared_arguments
         )
 
         if hasattr(result, "model_dump"):
@@ -113,7 +123,7 @@ def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: dict) ->
             "Failed to enable calendar trigger",
             extra={"trigger": trigger_name, "user_id": sanitized_user_id, "error": str(exc)}
         )
-        return {"status": "FAILED", "error": str(exc)}
+        return {"error": str(exc)}
 
 
 def _extract_email(obj: Any) -> Optional[str]:
@@ -204,8 +214,6 @@ def _clear_cached_profile(user_id: Optional[str] = None) -> None:
 
 def _fetch_calendar_profile_from_composio(
     user_id: Optional[str],
-    *,
-    calendar_id: str = "primary",
 ) -> Optional[Dict[str, Any]]:
     sanitized = _normalized(user_id)
     if not sanitized:
@@ -213,12 +221,12 @@ def _fetch_calendar_profile_from_composio(
 
     try:
         result = execute_calendar_tool(
-            "GOOGLECALENDAR_CALENDARLIST_GET",
-            sanitized,
-            arguments={"calendarId": calendar_id},
+            tool_name="GOOGLECALENDAR_GET_CALENDAR_PROFILE",
+            user_id=sanitized,
+            version="20260212_00"
         )
     except RuntimeError as exc:
-        logger.warning("CALENDARLIST_GET invocation failed: %s", exc)
+        logger.warning("GOOGLECALENDAR_GET_CALENDAR_PROFILE call failed: %s", exc)
         return None
     except Exception:
         logger.exception(
@@ -269,23 +277,13 @@ async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: S
     _clear_cached_profile(user_id)
 
     try:
-        # REPLACEMENT: Use singleton client and direct connected_accounts.initiate
         client = _get_composio_client()
         
-        # NOTE: In new SDK, initiate often takes integration_id/auth_config_id as a parameter
-        # Assuming auth_config_id is the integration UUID
+        logger.info(f"Initiating calendar connect for user: {user_id}, auth_config_id: {auth_config_id}")
         req = client.connected_accounts.initiate(
             auth_config_id=auth_config_id,
             user_id=user_id
         )
-
-        # Preserve the watcher start logic
-        async def start_calendar_watcher():
-            from server.services import get_calendar_watcher
-            calendar_watcher = get_calendar_watcher()
-            return await calendar_watcher.start()
-        
-        await start_calendar_watcher()
         
         return JSONResponse(
             {
@@ -305,7 +303,8 @@ async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: S
 
 
 # Check Calendar connection status and retrieve user account information
-def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
+async def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
+    logger.info(f"In fetch_calendar_status for user: {payload.user_id}, connection_request_id: {payload.connection_request_id}")
     connection_request_id = _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
 
@@ -322,15 +321,22 @@ def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
 
         if connection_request_id:
             try:
-                account = client.connected_accounts.get(id=connection_request_id)
-            except Exception:
-                account = None
+                account = client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
+            except Exception as exc:
+                logger.warning("Wait for connection failed, attempting direct fetch", extra={"id": connection_request_id})
+                try: 
+                    account = client.connected_accounts.get(connection_request_id)
+                except Exception as inner_exc:
+                    logger.error("Direct fetch also failed", extra={"id": connection_request_id, "error": str(inner_exc)})
+
+        logger.info(f"Found account: {account}")
 
         if account is None and user_id:
             try:
                 # REPLACEMENT: Use list filtering logic instead of get_entity iteration
                 items = client.connected_accounts.list(
-                    user_ids=[user_id], 
+                    user_ids=[user_id],
+                    toolkit_slugs=["GOOGLECALENDAR"],
                     statuses=["ACTIVE"]
                 )
                 
@@ -342,7 +348,9 @@ def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
                 
                 if data:
                     # Find first Google Calendar account
+                    logger.info(f"Found accounts: {data}")
                     for item in data:
+                        logger.info(f"Found account: {item}")
                         if (getattr(item, "appName", "").upper() == "GOOGLECALENDAR" or 
                             getattr(item, "appUniqueId", "").upper() == "GOOGLECALENDAR"):
                             account = item
@@ -394,6 +402,20 @@ def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
             _clear_cached_profile(user_id)
 
         _set_active_calendar_user_id(user_id)
+
+        try:
+            """from .calendar_watcher import get_calendar_watcher
+            watcher = get_calendar_watcher()
+            await watcher.start_attendee_response_trigger()
+            await watcher.cancel_or_delete_trigger()
+            await watcher.event_updated_trigger()
+            await watcher.start_starting_soon_trigger()
+            await watcher.start_create_event_trigger()
+
+            logger.info("Calendar triggers initialized successfully.")"""
+
+        except Exception as trigger_exc:
+            logger.error(f"Failed to auto-initialize triggers in jira_fetch_status: {trigger_exc}")
 
         return JSONResponse(
             {

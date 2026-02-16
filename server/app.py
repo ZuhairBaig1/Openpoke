@@ -19,9 +19,6 @@ from .services import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Manages the startup and shutdown lifecycle of background services.
-    """
     logger.info("Starting background services...")
     
     scheduler = get_trigger_scheduler()

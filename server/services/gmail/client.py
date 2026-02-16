@@ -157,6 +157,7 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
         return None
     try:
         result = execute_gmail_tool("GMAIL_GET_PROFILE", sanitized, arguments={"user_id": "me"})
+        logger.info("GMAIL_GET_PROFILE result: %s", result)
     except RuntimeError as exc:
         logger.warning("GMAIL_GET_PROFILE invocation failed: %s", exc)
         return None

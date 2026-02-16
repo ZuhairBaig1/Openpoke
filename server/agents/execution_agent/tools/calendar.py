@@ -12,7 +12,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
     {
     "type": "function",
     "function": {
-        "name": "google_calendar_create_event",
+        "name": "googlecalendar_create_event",
         "description": "Creates a new Google Calendar event with support for attendees, recurrence, Google Meet links, and working locations. Requires 'start_datetime'.",
         "parameters": {
             "type": "object",
@@ -159,7 +159,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
 {
     "type": "function",
     "function": {
-        "name": "google_calendar_quick_add",
+        "name": "googlecalendar_quick_add",
         "description": "Creates a Google Calendar event from a simple text string. Google parses the text to automatically determine the title, date, and time.",
         "parameters": {
             "type": "object",
@@ -188,7 +188,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
 {
     "type": "function",
     "function": {
-        "name": "google_calendar_events_get",
+        "name": "googlecalendar_events_get",
         "description": "Retrieves the details of a single specific event from a Google Calendar. You must provide the unique Event ID.",
         "parameters": {
             "type": "object",
@@ -219,7 +219,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
 {
     "type": "function",
     "function": {
-        "name": "google_calendar_find_event",
+        "name": "googlecalendar_find_event",
         "description": "Searches for events on a Google Calendar based on free-text queries, time ranges, and event types. Supports expanding recurring events and sorting.",
         "parameters": {
             "type": "object",
@@ -450,6 +450,110 @@ _SCHEMAS: List[Dict[str, Any]] = [
                     "default": 100,
                 },
             },
+            "additionalProperties": False,
+        },
+    },
+},
+{
+    "type": "function",
+    "function": {
+        "name": "googlecalendar_events_import",
+        "description": "Import an event into Google Calendar from an external iCal source. Requires iCalUID to identify the event being imported. Useful for importing events from email invitations or other calendar systems.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "iCalUID": {
+                    "type": "string",
+                    "description": "REQUIRED. Event unique identifier as defined in RFC5545. This is required to identify the event being imported.",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "Title of the event.",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of the event. Can contain HTML.",
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Geographic location of the event as free-form text.",
+                },
+                "start": {
+                    "type": "object",
+                    "description": "REQUIRED. The (inclusive) start time of the event. For all-day events, use 'date' field; for timed events, use 'dateTime' and 'timeZone' fields.",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "The date, in 'yyyy-mm-dd' format, for all-day events.",
+                        },
+                        "dateTime": {
+                            "type": "string",
+                            "description": "The start/end time as a combined date-time value (RFC3339).",
+                        },
+                        "timeZone": {
+                            "type": "string",
+                            "description": "The time zone for the start/end time.",
+                        },
+                    },
+                },
+                "end": {
+                    "type": "object",
+                    "description": "REQUIRED. The (exclusive) end time of the event. For all-day events, use 'date' field; for timed events, use 'dateTime' and 'timeZone' fields.",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "The date, in 'yyyy-mm-dd' format, for all-day events.",
+                        },
+                        "dateTime": {
+                            "type": "string",
+                            "description": "The start/end time as a combined date-time value (RFC3339).",
+                        },
+                        "timeZone": {
+                            "type": "string",
+                            "description": "The time zone for the start/end time.",
+                        },
+                    },
+                },
+                "attendees": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "email": {"type": "string"},
+                            "displayName": {"type": "string"},
+                            "optional": {"type": "boolean"},
+                            "responseStatus": {"type": "string"},
+                        },
+                    },
+                    "description": "The attendees of the event.",
+                },
+                "calendar_id": {
+                    "type": "string",
+                    "default": "primary",
+                    "description": "Calendar identifier. Use 'primary' for the logged-in user's primary calendar.",
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["confirmed", "tentative", "cancelled"],
+                    "description": "Status of the event.",
+                },
+                "visibility": {
+                    "type": "string",
+                    "enum": ["default", "public", "private", "confidential"],
+                    "description": "Visibility of the event.",
+                },
+                "transparency": {
+                    "type": "string",
+                    "enum": ["opaque", "transparent"],
+                    "description": "Whether the event blocks time on the calendar.",
+                },
+                "recurrence": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of RRULE, EXRULE, RDATE and EXDATE lines for a recurring event.",
+                },
+            },
+            "required": ["iCalUID", "start", "end"],
             "additionalProperties": False,
         },
     },
@@ -717,6 +821,44 @@ def googlecalendar_find_free_slots(
 
     return _execute("GOOGLECALENDAR_FIND_FREE_SLOTS", composio_user_id, arguments)
 
+def googlecalendar_events_import(
+    iCalUID: str,
+    start: Dict[str, Any],
+    end: Dict[str, Any],
+    calendar_id: str = "primary",
+    summary: Optional[str] = None,
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+    attendees: Optional[List[Dict[str, Any]]] = None,
+    status: Optional[str] = None,
+    visibility: Optional[str] = None,
+    transparency: Optional[str] = None,
+    recurrence: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Import an event into Google Calendar from an external iCal source."""
+    arguments: Dict[str, Any] = {
+        "iCalUID": iCalUID,
+        "start": start,
+        "end": end,
+        "calendar_id": calendar_id,
+        "summary": summary,
+        "description": description,
+        "location": location,
+        "attendees": attendees,
+        "status": status,
+        "visibility": visibility,
+        "transparency": transparency,
+        "recurrence": recurrence,
+    }
+
+    composio_user_id = get_active_calendar_user_id()
+    if not composio_user_id:
+        return {
+            "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
+        }
+
+    return _execute("GOOGLECALENDAR_EVENTS_IMPORT", composio_user_id, arguments)
+
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:  # noqa: ARG001
     """Return Google Calendar tool callables."""
     
@@ -729,6 +871,7 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:  # noqa: A
         "googlecalendar_delete_event": googlecalendar_delete_event,
         "googlecalendar_remove_attendee": googlecalendar_remove_attendee,
         "googlecalendar_find_free_slots": googlecalendar_find_free_slots,
+        "googlecalendar_events_import": googlecalendar_events_import,
     }
 
 
@@ -741,7 +884,8 @@ __all__ = [
     "googlecalendar_patch_event",
     "googlecalendar_delete_event",
     "googlecalendar_remove_attendee",
-    "googlecalendar_find_free_slots"
+    "googlecalendar_find_free_slots",
+    "googlecalendar_events_import",
 ]
 
     

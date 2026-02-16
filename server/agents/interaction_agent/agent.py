@@ -6,14 +6,31 @@ from typing import Dict, List
 
 from ...services.execution import get_agent_roster
 
+from ...services.timezone_store import get_timezone_store
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 _prompt_path = Path(__file__).parent / "system_prompt.md"
-SYSTEM_PROMPT = _prompt_path.read_text(encoding="utf-8").strip()
+SYSTEM_PROMPT_TEMPLATE = _prompt_path.read_text(encoding="utf-8").strip()
 
 
-# Load and return the pre-defined system prompt from markdown file
+# Load and return the system prompt with injected context
 def build_system_prompt() -> str:
-    """Return the static system prompt for the interaction agent."""
-    return SYSTEM_PROMPT
+    """Return the system prompt for the interaction agent with injected context."""
+    # Fetch actual timezone and time
+    tz_name = get_timezone_store().get_timezone()
+    tz = ZoneInfo(tz_name)
+    now = datetime.now(tz)
+    offset = now.strftime("%z")
+    # Format offset as HH:MM
+    formatted_offset = f"{offset[:3]}:{offset[3:]}" if len(offset) >= 5 else offset
+    current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    prompt = SYSTEM_PROMPT_TEMPLATE.replace("{timezone_name}", tz_name)
+    prompt = prompt.replace("{timezone_offset}", formatted_offset)
+    prompt = prompt.replace("{current_time}", current_time_str)
+    
+    return prompt
 
 
 # Build structured message with conversation history, active agents, and current turn

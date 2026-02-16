@@ -115,23 +115,18 @@ def send_message_to_agent(agent_name: str, instructions: str) -> ToolResult:
     roster = get_agent_roster()
     roster.load()
     existing_agents = set(roster.get_agents()) #list converted to set,ie unique only
-    logger.info(f"existing_agents: {existing_agents}, in send_message_to_agent inside interaction_agent/tools.py")
     is_new = agent_name not in existing_agents
-    logger.info(f"is_new: {is_new}, in send_message_to_agent inside interaction_agent/tools.py")
     if is_new:
         roster.add_agent(agent_name)
 
     get_execution_agent_logs().record_request(agent_name, instructions)
 
     action = "Created" if is_new else "Reused"
-    logger.info(f"{action} agent: {agent_name}, in send_message_to_agent inside interaction_agent/tools.py")
 
     async def _execute_async() -> None:
         try:
-            logger.info(f"About to call _EXECUTION_BATCH_MANAGER.execute_agent, in send_message_to_agent inside interaction_agent/tools.py, arguments passed:- agent name: {agent_name}, instructions: {instructions}")
             result = await _EXECUTION_BATCH_MANAGER.execute_agent(agent_name, instructions)
             status = "SUCCESS" if result.success else "FAILED"
-            logger.info(f"Agent '{agent_name}' completed: {status}, in send_message_to_agent inside interaction_agent/tools.py")
         except Exception as exc:  # pragma: no cover - defensive
             logger.error(f"Agent '{agent_name}' failed: {str(exc)}, in send_message_to_agent inside interaction_agent/tools.py")
 
@@ -181,7 +176,6 @@ def send_draft(
     message = f"To: {to}\nSubject: {subject}\n\n{body}"
 
     log.record_reply(message)
-    logger.info(f"Draft recorded for: {to}, in send_draft inside interaction_agent/tools.py")
 
     return ToolResult(
         success=True,
@@ -202,7 +196,6 @@ def wait(reason: str) -> ToolResult:
     
     # Record a dedicated wait entry so the UI knows to ignore it
     log.record_wait(reason)
-    logger.info(f"Wait recorded for: {reason}, in wait inside interaction_agent/tools.py")
     
 
     return ToolResult(
@@ -224,7 +217,6 @@ def get_tool_schemas():
 # Route tool calls to appropriate handlers with argument validation and error handling
 def handle_tool_call(name: str, arguments: Any) -> ToolResult:
     """Handle tool calls from interaction agent."""
-    logger.info(f"Inside handle_tool_call in interaction_agent/tools.py, tool_name: {name}, arguments: {arguments}")
     try:
         if isinstance(arguments, str):
             args = json.loads(arguments) if arguments.strip() else {}
@@ -234,16 +226,12 @@ def handle_tool_call(name: str, arguments: Any) -> ToolResult:
             return ToolResult(success=False, payload={"error": "Invalid arguments format"})
 
         if name == "send_message_to_agent":
-            logger.info(f"send_message_to_agent called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return send_message_to_agent(**args) 
         if name == "send_message_to_user":
-            logger.info(f"send_message_to_user called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return send_message_to_user(**args)  #send tool output directly to user
         if name == "send_draft":
-            logger.info(f"send_draft called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return send_draft(**args)  #outputs draft that is then stored in messge history, used after confirmation
         if name == "wait":
-            logger.info(f"wait called, in handle_tool_call inside interaction_agent/tools.py, arguments passed: {args}")
             return wait(**args) #returns reason for waiting, agent sees this and ends loop
 
         logger.warning("unexpected tool", extra={"tool": name})

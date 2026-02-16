@@ -15,11 +15,15 @@ def resolve_interaction_runtime() -> "InteractionAgentRuntime":
 class CalendarWatcher:
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
-        self._enabled = False
+        self._attendee_response_enabled = False
+        self._event_deleted_enabled = False
+        self._event_updated_enabled = False
+        self._event_starting_soon_enabled = False
+        self._event_created_enabled = False
 
-    async def start(self) -> None:
+    async def start_attendee_response_trigger(self) -> None:
         async with self._lock:
-            if self._enabled:
+            if self._attendee_response_enabled:
                 return
             
             user_id = get_active_calendar_user_id()
@@ -30,17 +34,117 @@ class CalendarWatcher:
             try:
                 result = enable_calendar_trigger(
                     "GOOGLECALENDAR_ATTENDEE_RESPONSE_CHANGED_TRIGGER",
-                    user_id,
-                    arguments={"calendarId": "primary"}
+                    user_id
                 )
                 
                 normalized = normalize_trigger_response(result)
                 
                 if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
-                    self._enabled = True
+                    self._attendee_response_enabled = True
                     logger.info("Calendar RSVP trigger registered successfully.")
             except Exception as e:
                 logger.error(f"Failed to register calendar trigger: {e}")
+
+    async def cancel_or_delete_trigger(self) -> None:
+        async with self._lock:
+            if self._event_deleted_enabled:
+                return
+            
+            user_id = get_active_calendar_user_id()
+            if not user_id:
+                logger.warning("Calendar not connected; skipping trigger registration.")
+                return
+
+            try:
+                result = enable_calendar_trigger(
+                    "GOOGLECALENDAR_EVENT_CANCELED_DELETED_TRIGGER",
+                    user_id,
+                    arguments={"minutes_before_start": 15}
+                )
+                
+                normalized = normalize_trigger_response(result)
+                
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                    self._event_deleted_enabled = True
+                    logger.info("Calendar event deleted trigger registered successfully.")
+            except Exception as e:
+                logger.error(f"Failed to register calendar trigger: {e}")
+
+    async def event_updated_trigger(self) -> None:
+        async with self._lock:
+            if self._event_updated_enabled:
+                return
+        
+            user_id = get_active_calendar_user_id()
+            if not user_id:
+                logger.warning("Calendar not connected; skipping trigger registration.")
+                return
+
+            try:
+                result = enable_calendar_trigger(
+                    "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_UPDATED_TRIGGER",
+                    user_id,
+                    arguments={"showDeleted": False}
+                )
+            
+                normalized = normalize_trigger_response(result)
+            
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                    self._event_updated_enabled = True
+                    logger.info("Calendar event updated trigger registered successfully.")
+            except Exception as e:
+                logger.error(f"Failed to register calendar trigger: {e}")
+
+    async def start_starting_soon_trigger(self) -> None:
+        async with self._lock:
+            if self._event_starting_soon_enabled:
+                return
+            
+            user_id = get_active_calendar_user_id()
+            if not user_id:
+                logger.warning("Calendar not connected; skipping trigger registration.")
+                return
+
+            try:
+                result = enable_calendar_trigger(
+                    "GOOGLECALENDAR_EVENT_STARTING_SOON_TRIGGER",
+                    user_id,
+                    arguments={"countdown_window_minutes": 15}
+                )
+                
+                normalized = normalize_trigger_response(result)
+                
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                    self._event_starting_soon_enabled = True
+                    logger.info("Calendar starting soon trigger registered successfully.")
+            except Exception as e:
+                logger.error(f"Failed to register calendar trigger: {e}")
+
+    async def start_create_event_trigger(self) -> None:
+        async with self._lock:
+            if self._event_created_enabled:
+                return
+            
+            user_id = get_active_calendar_user_id()
+            if not user_id:
+                logger.warning("Calendar not connected; skipping trigger registration.")
+                return
+
+            try:
+                result = enable_calendar_trigger(
+                    "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_CREATED_TRIGGER",
+                    user_id,
+                    arguments={"showDeleted": False}
+                )
+                
+                normalized = normalize_trigger_response(result)
+                
+                if normalized.get("status") in ["ENABLED", "active", "SUCCESS"]:
+                    self._event_created_enabled = True
+                    logger.info("Calendar event created trigger registered successfully.")
+            except Exception as e:
+                logger.error(f"Failed to register calendar trigger: {e}")
+    
 
 _calendar_watcher_instance: Optional["CalendarWatcher"] = None
 

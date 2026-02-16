@@ -103,14 +103,9 @@ class JiraWatcher:
 
 
     async def ensure_all_triggers_initialized(self, user_id: str) -> None:
-        """
-        Ensures that the project trigger and issue triggers for all existing projects are started.
-        This is called after a successful OAuth connection is detected.
-        """
-        # 1. Start Project Trigger
+
         await self.start_project_trigger(user_id)
 
-        # 2. Get all projects and start issue/update triggers for each
         try:
             logger.info(f"Fetching all projects to initialize triggers for user: {user_id}")
             all_active_projects = execute_jira_tool(
@@ -123,13 +118,10 @@ class JiraWatcher:
                 }
             )
             
-            # The structure of Composio response for JIRA_GET_ALL_PROJECTS:
-            # result['data'] usually contains the actual response from Jira
             data = all_active_projects.get("data", {})
             if isinstance(data, list):
                 project_list = data
             elif isinstance(data, dict):
-                # Sometimes it might be wrapped in another 'data' or 'values' key
                 project_list = data.get("data", {}).get("values", []) or data.get("values", []) or []
             else:
                 project_list = []

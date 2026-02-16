@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 
 from ..services import get_jira_watcher, process_event
 from ..logging_config import logger
-from typing import Optional
 
 router = APIRouter(tags=["webhook"])
 
@@ -82,42 +81,54 @@ async def is_duplicate_webhook(payload: dict, trigger_type: str, actual_data: di
 async def webhook(payload: dict, background_tasks: BackgroundTasks) -> JSONResponse:
     logger.info(f"\n\n\n\nWebhook received:{payload}")
 
-    from ..services import execute_jira_tool, get_active_jira_user_id
-    uid = get_active_jira_user_id()
-    if not uid:
-        logger.info(f"\n\n\n\nNo active Jira user found, in webhook")
-        return JSONResponse(content={"status": "error", "detail": "No active Jira user found"})
-    result = execute_jira_tool("JIRA_GET_CURRENT_USER",uid)
-
-    if not result or not result.get("successful"):
-        logger.info(f"\n\n\n\nError in response from Jira, in webhook: {result.get('error')}")
-        return JSONResponse(content={"status": "error", "detail": "Error in response from Jira"})
-
-    user_data = result.get("data", {})
-    user_name = user_data.get("displayName")
-    if not user_name:
-        logger.info(f"\n\n\n\nCould not extract display name from Jira response, in webhook")
-        return JSONResponse(content={"status": "error", "detail": "Could not extract user info from Jira"})
-
-    logger.info(f"\n\n\n\nUser name from Jira: {user_name}")
-
-
+    # 1. Identify trigger type and data immediately
     trigger_type = str(payload.get("type"))
     actual_data = payload
-
-    trigger_name = payload.get("metadata", {}).get("trigger_slug", "")
-    reporter = payload.get("data", {}).get("reporter", "")
-
-    if trigger_name in ("JIRA_UPDATED_ISSUE_TRIGGER", "JIRA_NEW_ISSUE_TRIGGER"):
-        if reporter == user_name:
-            logger.info(f"Issue {trigger_name.split('_')[1].lower()} by current user ({reporter}), dropping, in webhook")
-            return JSONResponse(content={"status": "ok", "detail": "ignored (current user action)"})
     
     if trigger_type == "composio.trigger.message":
         metadata = payload.get("metadata", {})
         trigger_type = str(metadata.get("trigger_slug"))
         actual_data = payload.get("data", {})
         logger.info(f"Extracted trigger type from metadata: {trigger_type}")
+
+    # 2. Check if this is a calendar trigger to decide if we need Jira verification
+    is_calendar = trigger_type.startswith("GOOGLECALENDAR")
+    user_name = None
+
+    if not is_calendar:
+        from ..services import execute_jira_tool, get_active_jira_user_id
+        uid = get_active_jira_user_id()
+        if not uid:
+            logger.info(f"\n\n\n\nNo active Jira user found, in webhook")
+            return JSONResponse(content={"status": "error", "detail": "No active Jira user found"})
+        
+        result = execute_jira_tool("JIRA_GET_CURRENT_USER", uid)
+        if not result or not result.get("successful"):
+            logger.info(f"\n\n\n\nError in response from Jira, in webhook: {result.get('error')}")
+            return JSONResponse(content={"status": "error", "detail": "Error in response from Jira"})
+
+        user_data = result.get("data", {})
+        user_name = user_data.get("displayName")
+        if not user_name:
+            logger.info(f"\n\n\n\nCould not extract display name from Jira response, in webhook")
+            return JSONResponse(content={"status": "error", "detail": "Could not extract user info from Jira"})
+
+        logger.info(f"\n\n\n\nUser name from Jira: {user_name}")
+
+    trigger_name = payload.get("metadata", {}).get("trigger_slug", "") if not is_calendar else trigger_type
+    reporter = payload.get("data", {}).get("reporter", "")
+
+    if trigger_name in ("JIRA_UPDATED_ISSUE_TRIGGER", "JIRA_NEW_ISSUE_TRIGGER"):
+        if user_name and reporter == user_name:
+            logger.info(f"Issue {trigger_name.split('_')[1].lower()} by current user ({reporter}), dropping, in webhook")
+            return JSONResponse(content={"status": "ok", "detail": "ignored (current user action)"})
+
+    if trigger_name == "GOOGLECALENDAR_ATTENDEE_RESPONSE_CHANGED_TRIGGER":
+        previous_response_status = payload.get("data",{}).get("previous_response_status",{})
+        response_status = payload.get("data",{}).get("response_status",{})
+        if previous_response_status == None and response_status == "accepted":
+            return JSONResponse(content={"status": "ok", "detail": "New event creation, dropping"})
+        
 
     if await is_duplicate_webhook(payload, trigger_type, actual_data):
         logger.info(f"Skipping duplicate webhook: type={trigger_type}, id={payload.get('id')}")
@@ -136,7 +147,13 @@ async def async_webhook_processor(trigger_type: str, actual_data: dict, full_pay
             await jira_watcher_instance.process_issue_payload(actual_data)
         elif trigger_type == "JIRA_UPDATED_ISSUE_TRIGGER":
             await jira_watcher_instance.process_update_payload(actual_data)
-        elif trigger_type == "GOOGLECALENDAR_ATTENDEE_RESPONSE_CHANGED_TRIGGER":
+        elif trigger_type in (
+            "GOOGLECALENDAR_ATTENDEE_RESPONSE_CHANGED_TRIGGER",
+            "GOOGLECALENDAR_EVENT_CANCELED_DELETED_TRIGGER",
+            "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_UPDATED_TRIGGER",
+            "GOOGLECALENDAR_EVENT_STARTING_SOON_TRIGGER",
+            "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_CREATED_TRIGGER"
+        ):
             await process_event(actual_data)
         else:
             logger.warning(f"Unknown webhook type: {trigger_type}. Full payload: {full_payload}")
