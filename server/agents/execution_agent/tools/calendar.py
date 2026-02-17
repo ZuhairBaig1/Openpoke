@@ -350,7 +350,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
           "description": "Whether the client application supports event attachments."
         }
       },
-      "required": ["calendar_id", "event_id"],
+      "required": ["calendar_id", "event_id","send_updates"],
       "additionalProperties": False
     }
   }
