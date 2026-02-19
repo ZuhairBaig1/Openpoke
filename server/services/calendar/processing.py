@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 class ProcessedCalendarEvent:
     """Normalized representation of a calendar event trigger."""
 
-    type: str  # rsvp, starting_soon, deleted, updated
+    type: str  # rsvp, deleted, updated
     title: str
     person: Optional[str] = None
     status: Optional[str] = None
@@ -47,14 +47,6 @@ def build_processed_event(data: Dict[str, Any]) -> Optional[ProcessedCalendarEve
             updated_fields=data.get("updated_fields"),
         )
 
-    if any(k in data for k in ("minutes_until_start", "minutes_before_start", "time_until_start", "start")):
-        return ProcessedCalendarEvent(
-            type="starting_soon",
-            title=event_title,
-            meeting_link=data.get("hangout_link") or data.get("hangoutLink") or data.get("meeting_link"),
-            location=data.get("location"),
-            start_time=data.get("start_time") or data.get("start", {}).get("dateTime"),
-        )
 
     if "organizer_email" in data:
         return ProcessedCalendarEvent(
@@ -76,19 +68,6 @@ def format_event_alert(event: ProcessedCalendarEvent) -> str:
             f"Source: Google Calendar"
         )
 
-    if event.type == "starting_soon":
-        alert_text = f"**Calendar Alert: Event Starting Soon**\n"
-        alert_text += f"The event **{event.title}** is starting soon"
-        if event.start_time:
-            alert_text += f" at {event.start_time}"
-        alert_text += ".\n"
-
-        if event.location:
-            alert_text += f"**Location:** {event.location}\n"
-        if event.meeting_link:
-            alert_text += f"**Meeting Link:** [Join Meeting]({event.meeting_link})\n"
-
-        return alert_text + "---\nSource: Google Calendar"
 
     if event.type == "deleted":
         return (

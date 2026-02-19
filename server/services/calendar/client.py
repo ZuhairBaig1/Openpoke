@@ -403,19 +403,6 @@ async def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
 
         _set_active_calendar_user_id(user_id)
 
-        try:
-            """from .calendar_watcher import get_calendar_watcher
-            watcher = get_calendar_watcher()
-            await watcher.start_attendee_response_trigger()
-            await watcher.cancel_or_delete_trigger()
-            await watcher.event_updated_trigger()
-            await watcher.start_starting_soon_trigger()
-            await watcher.start_create_event_trigger()
-
-            logger.info("Calendar triggers initialized successfully.")"""
-
-        except Exception as trigger_exc:
-            logger.error(f"Failed to auto-initialize triggers in jira_fetch_status: {trigger_exc}")
 
         return JSONResponse(
             {

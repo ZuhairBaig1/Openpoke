@@ -10,6 +10,7 @@ router = APIRouter(tags=["webhook"])
 
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 
 jira_watcher_instance = get_jira_watcher()
@@ -79,6 +80,7 @@ async def is_duplicate_webhook(payload: dict, trigger_type: str, actual_data: di
 
 @router.post("/webhook")
 async def webhook(payload: dict, background_tasks: BackgroundTasks) -> JSONResponse:
+    logger.warning(f"DEBUG: Webhook received at {datetime.utcnow().isoformat()}: {json.dumps(payload, indent=2)}")
     logger.info(f"\n\n\n\nWebhook received:{payload}")
 
     # 1. Identify trigger type and data immediately
@@ -122,12 +124,6 @@ async def webhook(payload: dict, background_tasks: BackgroundTasks) -> JSONRespo
         if user_name and reporter == user_name:
             logger.info(f"Issue {trigger_name.split('_')[1].lower()} by current user ({reporter}), dropping, in webhook")
             return JSONResponse(content={"status": "ok", "detail": "ignored (current user action)"})
-
-    if trigger_name == "GOOGLECALENDAR_ATTENDEE_RESPONSE_CHANGED_TRIGGER":
-        previous_response_status = payload.get("data",{}).get("previous_response_status",{})
-        response_status = payload.get("data",{}).get("response_status",{})
-        if previous_response_status == None and response_status == "accepted":
-            return JSONResponse(content={"status": "ok", "detail": "New event creation, dropping"})
         
 
     if await is_duplicate_webhook(payload, trigger_type, actual_data):
@@ -147,14 +143,7 @@ async def async_webhook_processor(trigger_type: str, actual_data: dict, full_pay
             await jira_watcher_instance.process_issue_payload(actual_data)
         elif trigger_type == "JIRA_UPDATED_ISSUE_TRIGGER":
             await jira_watcher_instance.process_update_payload(actual_data)
-        elif trigger_type in (
-            "GOOGLECALENDAR_ATTENDEE_RESPONSE_CHANGED_TRIGGER",
-            "GOOGLECALENDAR_EVENT_CANCELED_DELETED_TRIGGER",
-            "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_UPDATED_TRIGGER",
-            "GOOGLECALENDAR_EVENT_STARTING_SOON_TRIGGER",
-            "GOOGLECALENDAR_GOOGLE_CALENDAR_EVENT_CREATED_TRIGGER"
-        ):
-            await process_event(actual_data)
+
         else:
             logger.warning(f"Unknown webhook type: {trigger_type}. Full payload: {full_payload}")
     except Exception as e:

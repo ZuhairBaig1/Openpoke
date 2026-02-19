@@ -53,6 +53,7 @@ _SYSTEM_PROMPT = (
     "All calendar event invites, updates, confirmation, cancellation or deletion gmail messages, are of the highest priority, not to be neglected at all"
     "Also ignore order confirmations, newsletters, generic receipts, and low-impact status "
     "notifications. When important, craft a brief summary explaining why it matters."
+    "Ignore ALL messages related to jira, even it says its PRIORITY, HIGH PRIORITY, any meesages related to jira is to be ignored"
 )
 
 
