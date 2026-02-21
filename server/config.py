@@ -48,7 +48,7 @@ class Settings(BaseModel):
 
     # Server runtime
     server_host: str = Field(default=os.getenv("OPENPOKE_HOST", "0.0.0.0"))
-    server_port: int = Field(default=_env_int("OPENPOKE_PORT", 8001))
+    server_port: int = Field(default=_env_int("OPENPOKE_PORT", 8000))
 
     # LLM model selection
     interaction_agent_model: str = Field(default="google/gemini-3-flash-preview")

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const authConfigId = body?.authConfigId || '';
     const subdomain = body?.subdomain || '';
 
-    const serverBase = process.env.PY_SERVER_URL || 'http://localhost:8001';
+    const serverBase = process.env.PY_SERVER_URL || 'http://server:8000';
     const url = `${serverBase.replace(/\/$/, '')}/api/v1/jira/connect`;
 
     try {

@@ -1,4 +1,4 @@
-const serverBase = process.env.PY_SERVER_URL || 'http://localhost:8001';
+const serverBase = process.env.PY_SERVER_URL || 'http://server:8000';
 const historyPath = `${serverBase.replace(/\/$/, '')}/api/v1/chat/history`;
 
 async function forward(method: 'GET' | 'DELETE') {
