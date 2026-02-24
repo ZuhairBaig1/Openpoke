@@ -8,7 +8,9 @@ const repoRoot = resolve(__dirname, '..');
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 const { loadEnvConfig } = envPackage;
-loadEnvConfig?.(repoRoot, isDevelopment);
+if (isDevelopment) {
+  loadEnvConfig?.(repoRoot, isDevelopment);
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {};
