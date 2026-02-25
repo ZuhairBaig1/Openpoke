@@ -153,9 +153,7 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
 
     logger.info(f"Jira user_id: {user_id}")
 
-    subdomain = (
-        (settings.jira_subdomain or "").strip()
-    )
+    subdomain = (payload.subdomain or "").strip()
 
     logger.info(f"Jira subdomain: {subdomain}")
         
