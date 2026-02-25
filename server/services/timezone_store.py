@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import threading
 from pathlib import Path
 from typing import Optional
@@ -35,7 +36,7 @@ class TimezoneStore:
 
     def get_timezone(self, default: str = "UTC") -> str:
         with self._lock:
-            return self._cached or default
+            return self._cached or os.getenv("TZ", default)
 
     def set_timezone(self, timezone_name: str) -> None:
         validated = self._validate(timezone_name)

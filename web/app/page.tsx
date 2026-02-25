@@ -66,14 +66,15 @@ export default function Page() {
     void loadHistory();
   }, [loadHistory]);
 
-  // Detect and store browser timezone on first load
+  // Detect and store browser timezone once on mount or when timezone setting is missing
   useEffect(() => {
+    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Only update if we don't have a timezone or it's different
+    if (settings.timezone === browserTimezone) return;
+
     const detectAndStoreTimezone = async () => {
-
       try {
-        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-        // Send to server
         const response = await fetch('/api/timezone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -81,17 +82,15 @@ export default function Page() {
         });
 
         if (response.ok) {
-          // Update local settings
           setSettings({ ...settings, timezone: browserTimezone });
         }
       } catch (error) {
-        // Fail silently - timezone detection is not critical
         console.debug('Timezone detection failed:', error);
       }
     };
 
     void detectAndStoreTimezone();
-  }, [settings, setSettings]);
+  }, [setSettings, settings]); // Keep settings here but the guard above breaks the loop
 
 
   useEffect(() => {
