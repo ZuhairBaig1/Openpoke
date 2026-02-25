@@ -103,13 +103,13 @@ async def classify_email_importance(email: ProcessedEmail) -> Optional[str]:
         )
     except OpenRouterError as exc:
         logger.error(
-            "Importance classification failed",
-            extra={"message_id": email.id, "error": str(exc)},
+            f"Importance classification failed, cause :- ({exc})",
+            extra={"message_id": email.id},
         )
         return None
     except Exception as exc:  # pragma: no cover - defensive
         logger.exception(
-            "Unexpected error during importance classification",
+            f"Unexpected error during importance classification, cause :- ({exc})",
             extra={"message_id": email.id},
         )
         return None
