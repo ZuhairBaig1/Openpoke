@@ -966,6 +966,10 @@ def jira_search_for_issues_using_jql_post(
     fields_by_keys: bool = False,
     reconcile_issues: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
+    # If no fields are provided, default to a robust set to avoid empty payloads
+    if not fields:
+        fields = ["summary", "status", "assignee", "project", "key", "issuetype", "priority", "updated", "description", "reporter", "labels", "duedate", "browser_url"]
+
     arguments: Dict[str, Any] = {
         "jql": jql,
         "nextPageToken": next_page_token,
@@ -1006,6 +1010,10 @@ def jira_get_issue(
     properties: Optional[List[str]] = None,
     update_history: bool = False,
 ) -> Dict[str, Any]:
+    # If no fields are provided, default to a robust set to avoid empty payloads
+    if not fields:
+        fields = ["summary", "status", "assignee", "project", "key", "issuetype", "priority", "updated", "description", "reporter", "labels", "duedate", "browser_url"]
+
     arguments: Dict[str, Any] = {
         "issue_id_or_key": issue_id_or_key,
         "expand": expand,
