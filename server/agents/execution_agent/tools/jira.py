@@ -134,7 +134,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
                     },
                 "comment": {
                     "type": "string",
-                    "description": "The comment text. Use Markdown for **bold**, *italics*, `code`, and [links](url). Mention users with @username or @\"Display Name\"."
+                    "description": "The comment text. Use Markdown for **bold**, *italics*, `code`, and [links](url). Mention users with @username or @\"Display Name\". DO NOT USE HTML TAGS (e.g. `<a>`, `<br>`)."
                     },
                 "visibility_type": {
                     "type": "string",
@@ -171,7 +171,7 @@ _SCHEMAS: List[Dict[str, Any]] = [
                     },
                 "comment_text": {
                     "type": "string",
-                    "description": "The new text for the comment. Supports formatting like *bold* and @mentions (e.g., @\"John Doe\")."
+                    "description": "The new text for the comment. Supports formatting like *bold* and @mentions (e.g., @\"John Doe\"). DO NOT USE HTML TAGS (e.g. `<a>`, `<br>`)."
                     },
                 "notify_users": {
                     "type": "boolean",
