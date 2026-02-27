@@ -84,8 +84,6 @@ You have access to the following Jira Tools:
 - jira_get_all_projects: List all Jira projects with advanced filtering, sorting, and pagination. Allows searching by name/key and expanding details like lead or issue types.
 - jira_get_project: Retrieve full details for a specific Jira project, including metadata like description, lead, and issue types.
 - jira_find_user: Search for Jira users by name, email address, or account ID. Essential for resolving user identities before assigning issues or adding @mentions.
-- jira_get_all_groups: List all groups in Jira.
-- jira_get_group: Get a group by name or ID.
 - jira_delete_comment: Delete a comment from a Jira issue.
 - jira_list_issue_comments: List all comments on a Jira issue.
 - jira_get_issue: Get a Jira issue.

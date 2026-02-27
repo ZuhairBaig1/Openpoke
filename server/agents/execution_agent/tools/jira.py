@@ -646,56 +646,6 @@ _SCHEMAS: List[Dict[str, Any]] = [
 {
     "type": "function",
     "function": {
-        "name": "jira_get_all_groups",
-        "description": "Retrieve a list of all user groups available in the Jira instance. Useful for permissions auditing and group discovery.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "max_results": {
-                    "type": "integer",
-                    "description": "The maximum number of groups to return per page. Used for pagination.",
-                    "default": 50
-                },
-                "start_at": {
-                    "type": "integer",
-                    "description": "The index of the first item to return. Used for pagination to skip over groups already retrieved.",
-                    "default": 0
-                }
-            },
-            "required": [],
-            "additionalProperties": False
-        }
-    }
-},
-{
-    "type": "function",
-    "function": {
-        "name": "jira_get_group",
-        "description": "Retrieve full details for a specific Jira group, such as 'site-admins' or 'developers'. essential for listing members within a group.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "group_name": {
-                    "type": "string",
-                    "description": "The name of the group to retrieve (e.g., 'jira-software-users'). Either group_name or group_id must be provided."
-                },
-                "group_id": {
-                    "type": "string",
-                    "description": "The unique ID of the group to retrieve. Either group_name or group_id must be provided."
-                },
-                "expand": {
-                    "type": "string",
-                    "description": "List of entities to expand in the response. Pass 'users' to retrieve the list of members in this group."
-                }
-            },
-            "required": [],
-            "additionalProperties": False
-        }
-    }
-},
-{
-    "type": "function",
-    "function": {
         "name": "jira_get_current_user",
         "description": "Retrieve details of the currently authenticated Jira user, optionally expanding specific properties like groups or application roles.",
         "parameters": {
@@ -1074,39 +1024,6 @@ def jira_list_issue_comments(
     return raw_result
 
 
-def jira_get_all_groups(
-    max_results: int = 50,
-    start_at: int = 0,
-) -> Dict[str, Any]:
-
-    arguments: Dict[str, Any] = {
-        "max_results": max_results,
-        "start_at": start_at,
-    }
-
-    logger.info(f"jira_get_all_groups called with max_results: {max_results} and start_at: {start_at}")
-    uid = get_active_jira_user_id()
-    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
-    logger.info(f"Arguments for jira_get_all_groups: {arguments}")
-    return _execute("jira_get_all_groups",uid,arguments, version="20260203_00")
-
-def jira_get_group(
-    group_name: Optional[str] = None,
-    group_id: Optional[str] = None,
-    expand: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    arguments: Dict[str, Any] = {
-        "group_name": group_name,
-        "group_id": group_id,
-        "expand": expand,
-    }
-
-    logger.info(f"jira_get_group called with group_name: {group_name} and group_id: {group_id}")
-    uid = get_active_jira_user_id()
-    if not uid: return {"error": "Jira not connected. Please connect Jira in settings first."}
-    logger.info(f"Arguments for jira_get_group: {arguments}")
-    return _execute("jira_get_group",uid,arguments, version="20260203_00")
 
 def jira_delete_comment(
     issueIdOrKey: str,
@@ -1150,8 +1067,6 @@ def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:
         "jira_get_all_projects": jira_get_all_projects,
         "jira_get_project": jira_get_project,
         "jira_find_users": jira_find_users,
-        "jira_get_all_groups": jira_get_all_groups,
-        "jira_get_group": jira_get_group,
         "jira_delete_comment": jira_delete_comment,
         "jira_list_issue_comments": jira_list_issue_comments,
         "jira_get_issue": jira_get_issue,
