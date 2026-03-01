@@ -264,6 +264,7 @@ def format_event_alert(event: ProcessedJiraEvent) -> str:
                      if len(display_val) > 100:
                          display_val = display_val[:97] + "..."
                      alert_text += f"- **{field}**: {display_val}\n"
+                     alert_text += f"**State these changes to the user, you do not need to make yout own assumptions**\n"
 
         return alert_text + "---\nSource: Jira"
 
