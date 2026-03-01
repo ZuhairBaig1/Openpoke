@@ -119,11 +119,16 @@ async def webhook(payload: dict, background_tasks: BackgroundTasks) -> JSONRespo
 
     trigger_name = payload.get("metadata", {}).get("trigger_slug", "") if not is_calendar else trigger_type
     reporter = payload.get("data", {}).get("reporter", "")
+    assignee = payload.get("data", {}).get("assignee", "")
 
     if trigger_name in ("JIRA_UPDATED_ISSUE_TRIGGER", "JIRA_NEW_ISSUE_TRIGGER"):
         if user_name and reporter == user_name:
             logger.info(f"Issue {trigger_name.split('_')[1].lower()} by current user ({reporter}), dropping, in webhook")
             return JSONResponse(content={"status": "ok", "detail": "ignored (current user action)"})
+
+        if user_name and assignee != user_name:
+            logger.info(f"Issue {trigger_name.split('_')[1].lower()} not assigned to current user ({assignee}), dropping, in webhook")
+            return JSONResponse(content={"status": "ok", "detail": "ignored (issue not assigned to current user)"})
         
 
     if await is_duplicate_webhook(payload, trigger_type, actual_data):
