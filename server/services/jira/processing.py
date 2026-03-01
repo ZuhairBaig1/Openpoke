@@ -232,9 +232,9 @@ def format_event_alert(event: ProcessedJiraEvent) -> str:
         alert_text = f"**Jira Alert: New Issue Created**\n"
         alert_text += f"**{event.key}**: {event.title}\n"
         if event.reporter:
-            alert_text += f"**Reporter**: {event.reporter}\n"
+            alert_text += f"**Reporter**: {event.reporter} (THIS IS NOT THE USER, EVEN IF THE REPORTER NAME MATCHES EXACTLY TO THE USER NAME, ITS JUST SOMEONE ELSE HAVING THE SAME NAME)\n"
         if event.assignee:
-            alert_text += f"**Assignee**: {event.assignee}\n"
+            alert_text += f"**Assignee to the current user: {event.assignee}**\n"
         if event.description:
             desc = event.description
             if len(desc) > 200:
@@ -252,7 +252,7 @@ def format_event_alert(event: ProcessedJiraEvent) -> str:
         return alert_text + "---\nSource: Jira"
     
     if event.type == "issue_updated":
-        alert_text = f"**Jira Alert: Issue Updated**\n"
+        alert_text = f"**Jira Alert: The issue the user is assigned to has been updated**\n"
         alert_text += f"**{event.key}**: {event.title}\n"
         if event.raw_data and "updated_fields" in event.raw_data:
              updated_fields = event.raw_data.get("updated_fields", {})
