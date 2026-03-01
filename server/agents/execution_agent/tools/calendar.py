@@ -582,7 +582,7 @@ def googlecalendar_find_event(
     timeMin: Optional[str] = None,
     timeMax: Optional[str] = None,
     single_events: Optional[bool] = True,
-    max_results: Optional[int] = 15,
+    max_results: Optional[int] = 20,
     order_by: Optional[str] = None,
     event_types: Optional[List[str]] = None,
     show_deleted: Optional[bool] = None,
