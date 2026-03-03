@@ -44,7 +44,7 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
 4. **Jira OAuth2 Setup**
    - To enable Jira integration, you need to create an OAuth 2.0 app in the Atlassian Developer Console and configure it in Composio.
 
-   - **Create an Atlassian App**: Go to developer.atlassian.com/console/myapps, click Create → OAuth 2.0 integration, and give it a name (e.g., "OpenPoke").
+   - **Create an Atlassian App**: Go to developer.atlassian.com/console/myapps, click Create → OAuth 2.0 integration, and give it a name (e.g: "OpenPoke").
 
    - **Configure Scopes**: Under your app's Permissions tab, add the following scopes for Jira API and Jira Service Management API:
       - read:jira-user, manage:jira-webhook, manage:jira-data-provider,
