@@ -31,11 +31,16 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
    - Generate an API key
    - Replace `your_openrouter_api_key_here` with your actual key in `.env`
    
-   **Composio (Required for Gmail)**
-   - Sign in at [composio.dev](https://composio.dev/)
+   ** Composio (Required for Gmail, Jira & Google Calendar)**
+   - Sign in at composio.dev
    - Create an API key
-   - Set up Gmail integration and get your auth config ID
-   - Replace `your_composio_api_key_here` and `your_gmail_auth_config_id_here` in `.env`
+   - Set up integrations for Gmail, Jira, and Google Calendar, and get the auth config ID for each
+   - Replace the following in .env:
+     - COMPOSIO_API_KEY → your Composio API key
+     - COMPOSIO_GMAIL_AUTH_CONFIG_ID → your Gmail auth config ID
+     - COMPOSIO_JIRA_AUTH_CONFIG_ID → your Jira auth config ID
+     - COMPOSIO_GOOGLECALENDAR_AUTH_CONFIG_ID → your Google Calendar auth config ID
+       
 4. **(Required) Create and activate a Python 3.10+ virtualenv:**
    ```bash
    # Ensure you're using Python 3.10+
