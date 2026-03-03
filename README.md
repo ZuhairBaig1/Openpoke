@@ -31,7 +31,7 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
    - Generate an API key
    - Replace `your_openrouter_api_key_here` with your actual key in `.env`
    
-   ** Composio (Required for Gmail, Jira & Google Calendar)**
+   **Composio (Required for Gmail, Jira & Google Calendar)**
    - Sign in at composio.dev
    - Create an API key
    - Set up integrations for Gmail, Jira, and Google Calendar, and get the auth config ID for each
