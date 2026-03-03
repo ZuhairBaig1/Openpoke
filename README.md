@@ -44,9 +44,9 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
 4. **Jira OAuth2 Setup**
    - To enable Jira integration, you need to create an OAuth 2.0 app in the Atlassian Developer Console and configure it in Composio.
 
-   - Create an Atlassian App: Go to developer.atlassian.com/console/myapps, click Create → OAuth 2.0 integration, and give it a name (e.g., "OpenPoke").
+   - **Create an Atlassian App**: Go to developer.atlassian.com/console/myapps, click Create → OAuth 2.0 integration, and give it a name (e.g., "OpenPoke").
 
-   - Configure Scopes: Under your app's Permissions tab, add the following scopes for Jira API and Jira Service Management API:
+   - **Configure Scopes**: Under your app's Permissions tab, add the following scopes for Jira API and Jira Service Management API:
       - read:jira-user, manage:jira-webhook, manage:jira-data-provider,
       - read:servicedesk-request, manage:servicedesk-customer, write:servicedesk-request,
       - read:servicemanagement-insight-objects, offline_access,
@@ -55,9 +55,9 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
       - read:project:jira, read:issue-type-scheme:jira,
       - manage:jira-configuration, manage:jira-project,
       - write:jira-work, read:jira-work, read:me, read:account
-   - Get Credentials: Under your app's Settings, copy the Client ID and Client Secret. Under Authorization → OAuth 2.0 (3LO), add the Callback URL provided by Composio (found in your Composio integration settings).
+   - **Get Credentials**: Under your app's Settings, copy the Client ID and Client Secret. Under Authorization → OAuth 2.0 (3LO), add the Callback URL provided by Composio (found in your Composio integration settings).
 
-   - Configure Composio: On composio.dev, navigate to your Jira integration, enter the Client ID, Client Secret, and Redirect URL from your Atlassian app. Under Manage Scopes, ensure the same scopes listed above are enabled so Composio requests the correct permissions during the OAuth flow.
+   - **Configure Composio**: On composio.dev, navigate to your Jira integration, enter the Client ID, Client Secret, and Redirect URL from your Atlassian app. Under Manage Scopes, ensure the same scopes listed above are enabled so Composio requests the correct permissions during the OAuth flow.
        
 5. **(Required) Create and activate a Python 3.10+ virtualenv:**
    ```bash
