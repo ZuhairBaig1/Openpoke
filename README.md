@@ -71,7 +71,10 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
    ```bash
    npm run dev --prefix web
    ```
-9. **Connect Gmail for email workflows.** With both services running, open [http://localhost:3000](http://localhost:3000), head to *Settings → Gmail*, and complete the Composio OAuth flow. This step is required for email drafting, replies, and the important-email monitor.
+9. **Connect integrations for full functionality:** With both services running, open http://localhost:3000 and head to Settings to complete the Composio OAuth flow for each service:
+Gmail → Required for email drafting, replies, and the important-email monitor.
+Jira → Required for issue management, comments, and real-time webhook notifications. When prompted during OAuth, select the appropriate Jira subdomain (e.g., yourteam.atlassian.net) for the correct workspace.
+Google Calendar → Required for creating, searching, and managing calendar events.
 
 The web app proxies API calls to the Python server using the values in `.env`, so keeping both processes running is required for end-to-end flows.
 
