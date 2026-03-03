@@ -42,7 +42,7 @@ OpenPoke is a simplified, open-source take on [Interaction Company’s](https://
      - COMPOSIO_GOOGLECALENDAR_AUTH_CONFIG_ID → your Google Calendar auth config ID
     
 4. **Jira OAuth2 Setup**
-   To enable Jira integration, you need to create an OAuth 2.0 app in the Atlassian Developer Console and configure it in Composio.
+   - To enable Jira integration, you need to create an OAuth 2.0 app in the Atlassian Developer Console and configure it in Composio.
 
    - Create an Atlassian App: Go to developer.atlassian.com/console/myapps, click Create → OAuth 2.0 integration, and give it a name (e.g., "OpenPoke").
 
