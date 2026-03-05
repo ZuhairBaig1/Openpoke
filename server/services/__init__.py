@@ -36,15 +36,8 @@ from .calendar import (
     initiate_calendar_connect,
     fetch_calendar_status,
     disconnect_calendar_account,
-    normalize_trigger_response,
-    process_event,
-    CalendarWatcher,
-    get_calendar_watcher,
     execute_calendar_tool,
     enable_calendar_trigger,
-    ProcessedCalendarEvent,
-    build_processed_event,
-    format_event_alert,
 )
 from .trigger_scheduler import get_trigger_scheduler
 from .triggers import get_trigger_service
@@ -78,13 +71,7 @@ __all__ = [
     "disconnect_calendar_account",
     "fetch_calendar_status",
     "initiate_calendar_connect",
-    "process_event",
-    "CalendarWatcher",
-    "get_calendar_watcher",
     "execute_calendar_tool",
     "enable_calendar_trigger",
-    "ProcessedCalendarEvent",
-    "build_processed_event",
-    "format_event_alert",
 
 ]

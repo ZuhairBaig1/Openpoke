@@ -88,6 +88,5 @@ app.add_middleware(
 
 register_exception_handlers(app)
 app.include_router(api_router)
-app.include_router(webhook_router) # Include at root so /webhook works
 
 __all__ = ["app"]
