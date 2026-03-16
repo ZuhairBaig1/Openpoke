@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
 
-from ..services import get_jira_watcher, process_event
+from ..services import get_jira_watcher
 from ..logging_config import logger
 
 router = APIRouter(tags=["webhook"])
@@ -93,37 +93,40 @@ async def webhook(payload: dict, background_tasks: BackgroundTasks) -> JSONRespo
         actual_data = payload.get("data", {})
         logger.info(f"Extracted trigger type from metadata: {trigger_type}")
 
-    # 2. Check if this is a calendar trigger to decide if we need Jira verification
-    is_calendar = trigger_type.startswith("GOOGLECALENDAR")
+    # 2. Verify Jira user
+    from ..services import execute_jira_tool, get_active_jira_user_id
     user_name = None
 
-    if not is_calendar:
-        from ..services import execute_jira_tool, get_active_jira_user_id
-        uid = get_active_jira_user_id()
-        if not uid:
-            logger.info(f"\n\n\n\nNo active Jira user found, in webhook")
-            return JSONResponse(content={"status": "error", "detail": "No active Jira user found"})
-        
-        result = execute_jira_tool("JIRA_GET_CURRENT_USER", uid)
-        if not result or not result.get("successful"):
-            logger.info(f"\n\n\n\nError in response from Jira, in webhook: {result.get('error')}")
-            return JSONResponse(content={"status": "error", "detail": "Error in response from Jira"})
+    uid = get_active_jira_user_id()
+    if not uid:
+        logger.info(f"\n\n\n\nNo active Jira user found, in webhook")
+        return JSONResponse(content={"status": "error", "detail": "No active Jira user found"})
+    
+    result = execute_jira_tool("JIRA_GET_CURRENT_USER", uid)
+    if not result or not result.get("successful"):
+        logger.info(f"\n\n\n\nError in response from Jira, in webhook: {result.get('error')}")
+        return JSONResponse(content={"status": "error", "detail": "Error in response from Jira"})
 
-        user_data = result.get("data", {})
-        user_name = user_data.get("displayName")
-        if not user_name:
-            logger.info(f"\n\n\n\nCould not extract display name from Jira response, in webhook")
-            return JSONResponse(content={"status": "error", "detail": "Could not extract user info from Jira"})
+    user_data = result.get("data", {})
+    user_name = user_data.get("displayName")
+    if not user_name:
+        logger.info(f"\n\n\n\nCould not extract display name from Jira response, in webhook")
+        return JSONResponse(content={"status": "error", "detail": "Could not extract user info from Jira"})
 
-        logger.info(f"\n\n\n\nUser name from Jira: {user_name}")
+    logger.info(f"\n\n\n\nUser name from Jira: {user_name}")
 
-    trigger_name = payload.get("metadata", {}).get("trigger_slug", "") if not is_calendar else trigger_type
+    trigger_name = payload.get("metadata", {}).get("trigger_slug", "")
     reporter = payload.get("data", {}).get("reporter", "")
+    assignee = payload.get("data", {}).get("assignee", "")
 
     if trigger_name in ("JIRA_UPDATED_ISSUE_TRIGGER", "JIRA_NEW_ISSUE_TRIGGER"):
         if user_name and reporter == user_name:
             logger.info(f"Issue {trigger_name.split('_')[1].lower()} by current user ({reporter}), dropping, in webhook")
             return JSONResponse(content={"status": "ok", "detail": "ignored (current user action)"})
+
+        if user_name and assignee != user_name:
+            logger.info(f"Issue {trigger_name.split('_')[1].lower()} not assigned to current user ({assignee}), dropping, in webhook")
+            return JSONResponse(content={"status": "ok", "detail": "ignored (issue not assigned to current user)"})
         
 
     if await is_duplicate_webhook(payload, trigger_type, actual_data):

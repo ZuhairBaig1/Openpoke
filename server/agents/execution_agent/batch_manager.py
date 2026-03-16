@@ -147,7 +147,7 @@ class ExecutionBatchManager:
             await self._dispatch_to_interaction_agent(dispatch_payload)
 
     # Return list of currently pending execution requests for monitoring purposes
-    def get_pending_executions(self) -> List[Dict[str, str]]:
+    def get_pending_executions(self) -> List[Dict[str, str | float]]:
         """Expose pending executions for observability."""
 
         return [
