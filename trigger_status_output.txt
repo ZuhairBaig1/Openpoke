@@ -1,3 +1,0 @@
---- Enabled Triggers ---
-No GOOGLECALENDAR triggers found in the first page.
-Error filtering enabled triggers: Triggers.list() got an unexpected keyword argument 'statuses'
