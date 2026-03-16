@@ -56,6 +56,7 @@ class Settings(BaseModel):
     execution_agent_search_model: str = Field(default="google/gemini-3-flash-preview")
     summarizer_model: str = Field(default="google/gemini-3-flash-preview")
     email_classifier_model: str = Field(default="google/gemini-3-flash-preview")
+    jira_classifier_model: str = Field(default="google/gemini-3-flash-preview")
 
     # Credentials / integrations
     openrouter_api_key: Optional[str] = Field(default=os.getenv("OPENROUTER_API_KEY"))
