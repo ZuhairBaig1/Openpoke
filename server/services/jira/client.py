@@ -43,8 +43,8 @@ def get_active_jira_user_id() -> Optional[str]:
         return _ACTIVE_USER_ID_JIRA
 
 def _jira_import_client():
-    from composio import Composio  # type: ignore
-    return Composio
+    from composio_client import AsyncComposio  # type: ignore
+    return AsyncComposio
 
 def _get_composio_client(settings: Optional[Settings] = None):
     global _CLIENT
@@ -54,14 +54,14 @@ def _get_composio_client(settings: Optional[Settings] = None):
     with _CLIENT_LOCK:
         if _CLIENT is None:
             resolved_settings = settings or get_settings()
-            Composio = _jira_import_client()
+            AsyncComposio = _jira_import_client()
             api_key = resolved_settings.composio_api_key
             try:
-                _CLIENT = Composio(api_key=api_key) if api_key else Composio()
+                _CLIENT = AsyncComposio(api_key=api_key) if api_key else AsyncComposio()
             except TypeError as exc:
                 if api_key:
                     raise RuntimeError("Installed Composio SDK does not accept the api_key argument.") from exc
-                _CLIENT = Composio()
+                _CLIENT = AsyncComposio()
     return _CLIENT
 
 def _extract_jira_details(obj: Any) -> Dict[str, Optional[str]]:

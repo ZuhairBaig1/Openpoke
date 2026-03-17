@@ -46,8 +46,8 @@ def get_active_calendar_user_id() -> Optional[str]:
 
 
 def _calendar_import_client():
-    from composio import Composio  # type: ignore
-    return Composio
+    from composio_client import AsyncComposio  # type: ignore
+    return AsyncComposio
 
 
 # Get or create a singleton Composio client instance with thread-safe initialization
@@ -59,16 +59,16 @@ def _get_composio_client(settings: Optional[Settings] = None):
     with _CLIENT_LOCK:
         if _CLIENT is None:
             resolved_settings = settings or get_settings()
-            Composio = _calendar_import_client()
+            AsyncComposio = _calendar_import_client()
             api_key = resolved_settings.composio_api_key
             try:
-                _CLIENT = Composio(api_key=api_key) if api_key else Composio()
+                _CLIENT = AsyncComposio(api_key=api_key) if api_key else AsyncComposio()
             except TypeError as exc:
                 if api_key:
                     raise RuntimeError(
                         "Installed Composio SDK does not accept the api_key argument; upgrade the SDK or remove COMPOSIO_API_KEY."
                     ) from exc
-                _CLIENT = Composio()
+                _CLIENT = AsyncComposio()
     return _CLIENT
 
 
