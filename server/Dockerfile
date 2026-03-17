@@ -10,5 +10,5 @@ COPY . .
 
 WORKDIR /app
 
-CMD ["python","-m","server.server","--reload"]
+CMD ["python","-m","server.server"]
 
