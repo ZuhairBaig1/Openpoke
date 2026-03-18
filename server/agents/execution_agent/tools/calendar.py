@@ -462,13 +462,13 @@ def get_schemas() -> List[Dict[str, Any]]:
 _LOG_STORE = get_execution_agent_logs()
 
 
-def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+async def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a Google Calendar tool and record the action for the execution agent journal."""
 
     payload = {k: v for k, v in arguments.items() if v is not None}
     payload_str = json.dumps(payload, ensure_ascii=False, sort_keys=True) if payload else "{}"
     try:
-        result = execute_calendar_tool(tool_name, composio_user_id, arguments=payload)
+        result = await execute_calendar_tool(tool_name, composio_user_id, arguments=payload)
     except Exception as exc:
         _LOG_STORE.record_action(
             _CALENDAR_AGENT_NAME,
@@ -482,7 +482,7 @@ def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -
     )
     return result
 
-def googlecalendar_create_event(
+async def googlecalendar_create_event(
     start_datetime: str,
     calendar_id: str = "primary",
     summary: Optional[str] = None,
@@ -531,10 +531,10 @@ def googlecalendar_create_event(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_CREATE_EVENT", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_CREATE_EVENT", composio_user_id, arguments)
 
 
-def googlecalendar_quick_add(
+async def googlecalendar_quick_add(
     text: str,
     calendar_id: str = "primary",
     send_updates: Optional[str] = "none",
@@ -551,10 +551,10 @@ def googlecalendar_quick_add(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_QUICK_ADD", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_QUICK_ADD", composio_user_id, arguments)
 
 
-def googlecalendar_events_get(
+async def googlecalendar_events_get(
     event_id: str,
     calendar_id: str = "primary",
     max_attendees: Optional[int] = None,
@@ -573,10 +573,10 @@ def googlecalendar_events_get(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_EVENTS_GET", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_EVENTS_GET", composio_user_id, arguments)
 
 
-def googlecalendar_find_event(
+async def googlecalendar_find_event(
     calendar_id: str = "primary",
     query: Optional[str] = None,
     timeMin: Optional[str] = None,
@@ -609,12 +609,12 @@ def googlecalendar_find_event(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_FIND_EVENT", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_FIND_EVENT", composio_user_id, arguments)
 
 from typing import Optional, List, Dict, Any
 
 
-def googlecalendar_patch_event(
+async def googlecalendar_patch_event(
     calendar_id: str,
     event_id: str,
     summary: Optional[str] = None,
@@ -653,10 +653,10 @@ def googlecalendar_patch_event(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_PATCH_EVENT", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_PATCH_EVENT", composio_user_id, arguments)
 
 
-def googlecalendar_delete_event(
+async def googlecalendar_delete_event(
     event_id: str,
     calendar_id: str = "primary",
 ) -> Dict[str, Any]:
@@ -671,9 +671,9 @@ def googlecalendar_delete_event(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_DELETE_EVENT", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_DELETE_EVENT", composio_user_id, arguments)
 
-def googlecalendar_remove_attendee(
+async def googlecalendar_remove_attendee(
     event_id: str,
     calendar_id: str = "primary",
     attendee_email: str = "",
@@ -690,9 +690,9 @@ def googlecalendar_remove_attendee(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_REMOVE_ATTENDEE", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_REMOVE_ATTENDEE", composio_user_id, arguments)
 
-def googlecalendar_find_free_slots(
+async def googlecalendar_find_free_slots(
     items: List[str] = ["primary"],
     time_min: Optional[str] = None,
     time_max: Optional[str] = None,
@@ -715,7 +715,7 @@ def googlecalendar_find_free_slots(
             "error": "Google Calendar not connected. Please connect Google Calendar in settings first."
         }
 
-    return _execute("GOOGLECALENDAR_FIND_FREE_SLOTS", composio_user_id, arguments)
+    return await _execute("GOOGLECALENDAR_FIND_FREE_SLOTS", composio_user_id, arguments)
 
 
 def build_registry(agent_name: str) -> Dict[str, Callable[..., Any]]:  # noqa: ARG001

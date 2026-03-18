@@ -102,7 +102,7 @@ async def webhook(payload: dict, background_tasks: BackgroundTasks) -> JSONRespo
         logger.info(f"\n\n\n\nNo active Jira user found, in webhook")
         return JSONResponse(content={"status": "error", "detail": "No active Jira user found"})
     
-    result = execute_jira_tool("JIRA_GET_CURRENT_USER", uid)
+    result = await execute_jira_tool("JIRA_GET_CURRENT_USER", uid)
     if not result or not result.get("successful"):
         logger.info(f"\n\n\n\nError in response from Jira, in webhook: {result.get('error')}")
         return JSONResponse(content={"status": "error", "detail": "Error in response from Jira"})

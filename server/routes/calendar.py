@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from ..config import Settings, get_settings
 from ..models import CalendarConnectPayload, CalendarDisconnectPayload, CalendarStatusPayload
-from ..services.calendar import disconnect_calendar_account, fetch_calendar_status, initiate_calendar_connect, process_event
+from ..services.calendar import disconnect_calendar_account, fetch_calendar_status, initiate_calendar_connect
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -25,6 +25,6 @@ async def calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
 @router.post("/disconnect")
 # Disconnect Jira account and clear cached profile data
 async def calendar_disconnect(payload: CalendarDisconnectPayload) -> JSONResponse:
-    return disconnect_calendar_account(payload)
+    return await disconnect_calendar_account(payload)
 
 

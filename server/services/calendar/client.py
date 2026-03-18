@@ -73,7 +73,7 @@ def _get_composio_client(settings: Optional[Settings] = None):
 
 
 # --- Generic Tool Executor ---
-def execute_calendar_tool(
+async def execute_calendar_tool(
     tool_name: str, 
     user_id: str, 
     arguments: Optional[dict[str, Any]] = None,
@@ -87,7 +87,7 @@ def execute_calendar_tool(
         client = _get_composio_client()
         prepared_arguments = arguments or {}
         logger.info(f"Executing calendar tool: {tool_name} for user: {sanitized_user_id}, version: {version}, arguments: {prepared_arguments}")
-        result = client.client.tools.execute(
+        result = await client.client.tools.execute(
             tool_name.upper(),
             user_id=sanitized_user_id,
             arguments=prepared_arguments,
@@ -100,7 +100,7 @@ def execute_calendar_tool(
         return {"error": str(exc)}
 
 
-def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: Optional[dict[str, Any]] = None) -> Dict[str, Any]:
+async def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: Optional[dict[str, Any]] = None) -> Dict[str, Any]:
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
         return {"error": "Missing user_id"}
@@ -108,7 +108,7 @@ def enable_calendar_trigger(trigger_name: str, user_id: str, arguments: Optional
     try:
         client = _get_composio_client()
         prepared_arguments = arguments or {}
-        result = client.triggers.create(
+        result = await client.triggers.create(
             slug=trigger_name.upper(),
             user_id=sanitized_user_id,
             trigger_config=prepared_arguments
@@ -212,7 +212,7 @@ def _clear_cached_profile(user_id: Optional[str] = None) -> None:
             _PROFILE_CACHE.clear()
 
 
-def _fetch_calendar_profile_from_composio(
+async def _fetch_calendar_profile_from_composio(
     user_id: Optional[str],
 ) -> Optional[Dict[str, Any]]:
     sanitized = _normalized(user_id)
@@ -220,7 +220,7 @@ def _fetch_calendar_profile_from_composio(
         return None
 
     try:
-        result = execute_calendar_tool(
+        result = await execute_calendar_tool(
             tool_name="GOOGLECALENDAR_GET_CALENDAR_PROFILE",
             user_id=sanitized,
             version="20260212_00"
@@ -280,7 +280,7 @@ async def initiate_calendar_connect(payload: CalendarConnectPayload, settings: S
         client = _get_composio_client()
         
         logger.info(f"Initiating calendar connect for user: {user_id}, auth_config_id: {auth_config_id}")
-        req = client.connected_accounts.initiate(
+        req = await client.connected_accounts.initiate(
             auth_config_id=auth_config_id,
             user_id=user_id
         )
@@ -321,11 +321,11 @@ async def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
 
         if connection_request_id:
             try:
-                account = client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
+                account = await client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
             except Exception as exc:
                 logger.warning("Wait for connection failed, attempting direct fetch", extra={"id": connection_request_id})
                 try: 
-                    account = client.connected_accounts.get(connection_request_id)
+                    account = await client.connected_accounts.get(connection_request_id)
                 except Exception as inner_exc:
                     logger.error("Direct fetch also failed", extra={"id": connection_request_id, "error": str(inner_exc)})
 
@@ -334,7 +334,7 @@ async def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
         if account is None and user_id:
             try:
                 # REPLACEMENT: Use list filtering logic instead of get_entity iteration
-                items = client.connected_accounts.list(
+                items = await client.connected_accounts.list(
                     user_ids=[user_id],
                     toolkit_slugs=["GOOGLECALENDAR"],
                     statuses=["ACTIVE"]
@@ -390,7 +390,7 @@ async def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
                 profile = cached_profile
                 profile_source = "cache"
             else:
-                fetched = _fetch_calendar_profile_from_composio(user_id)
+                fetched = await _fetch_calendar_profile_from_composio(user_id)
                 if fetched:
                     profile = fetched
                     profile_source = "fetched"
@@ -427,7 +427,7 @@ async def fetch_calendar_status(payload: CalendarStatusPayload) -> JSONResponse:
         )
 
 
-def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONResponse:
+async def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONResponse:
     connection_id = _normalized(payload.connection_id) or _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
 
@@ -451,16 +451,16 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
     errors: list[str] = []
     affected_user_ids: set[str] = set()
 
-    def _delete_connection(identifier: str) -> None:
+    async def _delete_connection(identifier: str) -> None:
         sanitized_id = _normalized(identifier)
         if not sanitized_id:
             return
         try:
-            connection = client.connected_accounts.get(sanitized_id)
+            connection = await client.connected_accounts.get(sanitized_id)
         except Exception:
             connection = None
         try:
-            client.connected_accounts.delete(sanitized_id)
+            await client.connected_accounts.delete(sanitized_id)
             removed_ids.append(sanitized_id)
             if connection is not None:
                 if hasattr(connection, "user_id"):
@@ -479,11 +479,11 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
             errors.append(str(exc))
 
     if connection_id:
-        _delete_connection(connection_id)
+        await _delete_connection(connection_id)
     elif user_id:
         try:
             # REPLACEMENT: Use list filtering instead of get_entity
-            items = client.connected_accounts.list(user_ids=[user_id])
+            items = await client.connected_accounts.list(user_ids=[user_id])
             
             data = getattr(items, "data", None)
             if data is None and isinstance(items, dict):
@@ -497,7 +497,7 @@ def disconnect_calendar_account(payload: CalendarDisconnectPayload) -> JSONRespo
                        getattr(conn, "appUniqueId", "").upper() == "GOOGLECALENDAR":
                         cid = getattr(conn, "id", None)
                         if cid:
-                            _delete_connection(cid)
+                            await _delete_connection(cid)
 
         except Exception as exc:
             logger.exception("Failed to list Calendar connections", extra={"user_id": user_id})

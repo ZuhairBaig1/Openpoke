@@ -345,13 +345,13 @@ def get_schemas() -> List[Dict[str, Any]]:
 
 
 # Execute a Gmail tool and record the action for the execution agent journal
-def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+async def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a Gmail tool and record the action for the execution agent journal."""
 
     payload = {k: v for k, v in arguments.items() if v is not None}
     payload_str = json.dumps(payload, ensure_ascii=False, sort_keys=True) if payload else "{}"
     try:
-        result = execute_gmail_tool(tool_name, composio_user_id, arguments=payload)
+        result = await execute_gmail_tool(tool_name, composio_user_id, arguments=payload)
     except Exception as exc:
         _LOG_STORE.record_action(
             _GMAIL_AGENT_NAME,
@@ -367,7 +367,7 @@ def _execute(tool_name: str, composio_user_id: str, arguments: Dict[str, Any]) -
 
 
 # Create a Gmail draft via Composio with support for HTML, attachments, and threading
-def gmail_create_draft(
+async def gmail_create_draft(
     recipient_email: str,
     subject: str,
     body: str,
@@ -392,22 +392,22 @@ def gmail_create_draft(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_CREATE_EMAIL_DRAFT", composio_user_id, arguments)
+    return await _execute("GMAIL_CREATE_EMAIL_DRAFT", composio_user_id, arguments)
 
 
 # Send a previously created Gmail draft using Composio
-def gmail_execute_draft(
+async def gmail_execute_draft(
     draft_id: str,
 ) -> Dict[str, Any]:
     arguments = {"draft_id": draft_id}
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_SEND_DRAFT", composio_user_id, arguments)
+    return await _execute("GMAIL_SEND_DRAFT", composio_user_id, arguments)
 
 
 # Forward an existing Gmail message with optional additional context
-def gmail_forward_email(
+async def gmail_forward_email(
     message_id: str,
     recipient_email: str,
     additional_text: Optional[str] = None,
@@ -420,11 +420,11 @@ def gmail_forward_email(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_FORWARD_MESSAGE", composio_user_id, arguments)
+    return await _execute("GMAIL_FORWARD_MESSAGE", composio_user_id, arguments)
 
 
 # Send a reply within an existing Gmail thread via Composio
-def gmail_reply_to_thread(
+async def gmail_reply_to_thread(
     thread_id: str,
     recipient_email: str,
     message_body: str,
@@ -447,21 +447,21 @@ def gmail_reply_to_thread(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_REPLY_TO_THREAD", composio_user_id, arguments)
+    return await _execute("GMAIL_REPLY_TO_THREAD", composio_user_id, arguments)
 
 
 # Delete a specific Gmail draft using the Composio Gmail integration
-def gmail_delete_draft(
+async def gmail_delete_draft(
     draft_id: str,
 ) -> Dict[str, Any]:
     arguments = {"draft_id": draft_id}
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_DELETE_DRAFT", composio_user_id, arguments)
+    return await _execute("GMAIL_DELETE_DRAFT", composio_user_id, arguments)
 
 
-def gmail_get_contacts(
+async def gmail_get_contacts(
     resource_name: Optional[str] = None,
     person_fields: Optional[str] = None,
     include_other_contacts: Optional[bool] = None,
@@ -476,10 +476,10 @@ def gmail_get_contacts(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_GET_CONTACTS", composio_user_id, arguments)
+    return await _execute("GMAIL_GET_CONTACTS", composio_user_id, arguments)
 
 
-def gmail_get_people(
+async def gmail_get_people(
     resource_name: Optional[str] = None,
     person_fields: Optional[str] = None,
     page_size: Optional[int] = None,
@@ -498,10 +498,10 @@ def gmail_get_people(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_GET_PEOPLE", composio_user_id, arguments)
+    return await _execute("GMAIL_GET_PEOPLE", composio_user_id, arguments)
 
 
-def gmail_list_drafts(
+async def gmail_list_drafts(
     max_results: Optional[int] = None,
     page_token: Optional[str] = None,
     verbose: Optional[bool] = None,
@@ -514,10 +514,10 @@ def gmail_list_drafts(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_LIST_DRAFTS", composio_user_id, arguments)
+    return await _execute("GMAIL_LIST_DRAFTS", composio_user_id, arguments)
 
 
-def gmail_search_people(
+async def gmail_search_people(
     query: str,
     person_fields: Optional[str] = None,
     page_size: Optional[int] = None,
@@ -536,10 +536,10 @@ def gmail_search_people(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_SEARCH_PEOPLE", composio_user_id, arguments)
+    return await _execute("GMAIL_SEARCH_PEOPLE", composio_user_id, arguments)
 
 
-def gmail_fetch_message_by_id(
+async def gmail_fetch_message_by_id(
     message_id: str,
     format: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -551,7 +551,7 @@ def gmail_fetch_message_by_id(
     composio_user_id = get_active_gmail_user_id()
     if not composio_user_id:
         return {"error": "Gmail not connected. Please connect Gmail in settings first."}
-    return _execute("GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID", composio_user_id, arguments)
+    return await _execute("GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID", composio_user_id, arguments)
 
 
 # Return Gmail tool callables

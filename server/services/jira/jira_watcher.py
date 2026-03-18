@@ -29,7 +29,7 @@ class JiraWatcher:
 
             try:
                 logger.info(f"Registering JIRA_NEW_PROJECT_TRIGGER for user: {user_id}")
-                result = enable_jira_trigger(
+                result = await enable_jira_trigger(
                     "JIRA_NEW_PROJECT_TRIGGER",
                     user_id,
                     arguments=None
@@ -57,7 +57,7 @@ class JiraWatcher:
 
             try:
                 logger.info(f"Registering JIRA_NEW_ISSUE_TRIGGER for {project_key} (user: {user_id})")
-                result = enable_jira_trigger(
+                result = await enable_jira_trigger(
                     "JIRA_NEW_ISSUE_TRIGGER",
                     user_id,
                     arguments={"project_key": project_key}
@@ -86,7 +86,7 @@ class JiraWatcher:
 
             try:
                 logger.info(f"Registering JIRA_UPDATED_ISSUE_TRIGGER for {project_key} (user: {user_id})")
-                result = enable_jira_trigger(
+                result = await enable_jira_trigger(
                     "JIRA_UPDATED_ISSUE_TRIGGER",
                     user_id,
                     arguments={"project_key": project_key}
@@ -108,7 +108,7 @@ class JiraWatcher:
 
         try:
             logger.info(f"Fetching all projects to initialize triggers for user: {user_id}")
-            all_active_projects = execute_jira_tool(
+            all_active_projects = await execute_jira_tool(
                 "JIRA_GET_ALL_PROJECTS",
                 user_id,
                 arguments={

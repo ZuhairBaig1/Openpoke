@@ -151,12 +151,12 @@ def _clear_cached_profile(user_id: Optional[str] = None) -> None:
             _PROFILE_CACHE.clear()
 
 
-def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, Any]]:
+async def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, Any]]:
     sanitized = _normalized(user_id)
     if not sanitized:
         return None
     try:
-        result = execute_gmail_tool("GMAIL_GET_PROFILE", sanitized, arguments={"user_id": "me"})
+        result = await execute_gmail_tool("GMAIL_GET_PROFILE", sanitized, arguments={"user_id": "me"})
         logger.info("GMAIL_GET_PROFILE result: %s", result)
     except RuntimeError as exc:
         logger.warning("GMAIL_GET_PROFILE invocation failed: %s", exc)
@@ -205,7 +205,7 @@ def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, A
 
 
 # Start Gmail OAuth connection process and return redirect URL
-def initiate_connect(payload: GmailConnectPayload, settings: Settings) -> JSONResponse:
+async def initiate_connect(payload: GmailConnectPayload, settings: Settings) -> JSONResponse:
     auth_config_id = payload.auth_config_id or settings.composio_gmail_auth_config_id or get_settings().composio_gmail_auth_config_id or os.getenv("COMPOSIO_GMAIL_AUTH_CONFIG_ID") or ""
     if not auth_config_id:
         return error_response(
@@ -218,7 +218,7 @@ def initiate_connect(payload: GmailConnectPayload, settings: Settings) -> JSONRe
     _clear_cached_profile(user_id)
     try:
         client = _get_composio_client(settings)
-        req = client.connected_accounts.initiate(auth_config_id=auth_config_id, user_id=user_id) 
+        req = await client.connected_accounts.initiate(auth_config_id=auth_config_id, user_id=user_id) 
         data = {
             "ok": True,
             "redirect_url": getattr(req, "redirectUrl", None) or getattr(req, "redirect_url", None),
@@ -236,7 +236,7 @@ def initiate_connect(payload: GmailConnectPayload, settings: Settings) -> JSONRe
 
 
 # Check Gmail connection status and retrieve user account information
-def fetch_status(payload: GmailStatusPayload) -> JSONResponse:
+async def fetch_status(payload: GmailStatusPayload) -> JSONResponse:
     connection_request_id = _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
 
@@ -251,13 +251,13 @@ def fetch_status(payload: GmailStatusPayload) -> JSONResponse:
         account: Any = None
         if connection_request_id:
             try:
-                account = client.connected_accounts.get(connection_request_id)
+                account = await client.connected_accounts.get(connection_request_id)
             except Exception:
                 account = None
         
         if account is None and user_id:
             try:
-                items = client.connected_accounts.list(
+                items = await client.connected_accounts.list(
                     user_ids=[user_id], toolkit_slugs=["GMAIL"], statuses=["ACTIVE"]
                 )
                 data = getattr(items, "data", None)
@@ -293,7 +293,7 @@ def fetch_status(payload: GmailStatusPayload) -> JSONResponse:
                 profile = cached_profile
                 profile_source = "cache"
             else:
-                fetched_profile = _fetch_profile_from_composio(user_id)
+                fetched_profile = await _fetch_profile_from_composio(user_id)
                 if fetched_profile:
                     profile = fetched_profile
                     profile_source = "fetched"
@@ -330,7 +330,7 @@ def fetch_status(payload: GmailStatusPayload) -> JSONResponse:
         )
 
 
-def disconnect_account(payload: GmailDisconnectPayload) -> JSONResponse:
+async def disconnect_account(payload: GmailDisconnectPayload) -> JSONResponse:
     connection_id = _normalized(payload.connection_id) or _normalized(payload.connection_request_id)
     user_id = _normalized(payload.user_id)
 
@@ -354,16 +354,16 @@ def disconnect_account(payload: GmailDisconnectPayload) -> JSONResponse:
     errors: list[str] = []
     affected_user_ids: set[str] = set()
 
-    def _delete_connection(identifier: str) -> None:
+    async def _delete_connection(identifier: str) -> None:
         sanitized_id = _normalized(identifier)
         if not sanitized_id:
             return
         try:
-            connection = client.connected_accounts.get(sanitized_id)
+            connection = await client.connected_accounts.get(sanitized_id)
         except Exception:
             connection = None
         try:
-            client.connected_accounts.delete(sanitized_id)
+            await client.connected_accounts.delete(sanitized_id)
             removed_ids.append(sanitized_id)
             if connection is not None:
                 if hasattr(connection, "user_id"):
@@ -375,10 +375,10 @@ def disconnect_account(payload: GmailDisconnectPayload) -> JSONResponse:
             errors.append(str(exc))
 
     if connection_id:
-        _delete_connection(connection_id)
+        await _delete_connection(connection_id)
     else:
         try:
-            items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["GMAIL"])
+            items = await client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["GMAIL"])
             data = getattr(items, "data", None)
             if data is None and isinstance(items, dict):
                 data = items.get("data")
@@ -403,7 +403,7 @@ def disconnect_account(payload: GmailDisconnectPayload) -> JSONResponse:
                 if candidate:
                     if candidate_user_id:
                         affected_user_ids.add(_normalized(candidate_user_id))
-                    _delete_connection(candidate)
+                    await _delete_connection(candidate)
 
     if user_id:
         affected_user_ids.add(user_id)
@@ -463,7 +463,7 @@ def _normalize_tool_response(result: Any) -> Dict[str, Any]:
 
 
 # Execute Gmail operations through Composio SDK with error handling
-def execute_gmail_tool(
+async def execute_gmail_tool(
     tool_name: str,
     composio_user_id: str,
     *,
@@ -479,7 +479,7 @@ def execute_gmail_tool(
 
     try:
         client = _get_composio_client()
-        result = client.client.tools.execute(
+        result = await client.client.tools.execute(
             tool_name,
             user_id=composio_user_id,
             arguments=prepared_arguments,

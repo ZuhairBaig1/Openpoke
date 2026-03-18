@@ -312,7 +312,7 @@ async def _perform_search(
     )
 
     try:
-        raw_result = execute_gmail_tool(
+        raw_result = await execute_gmail_tool(
             "GMAIL_FETCH_EMAILS",
             composio_user_id,
             arguments=composio_arguments,

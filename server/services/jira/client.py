@@ -113,12 +113,12 @@ def _clear_cached_profile(user_id: Optional[str] = None) -> None:
         else:
             _PROFILE_CACHE.clear()
 
-def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, Any]]:
+async def _fetch_profile_from_composio(user_id: Optional[str]) -> Optional[Dict[str, Any]]:
     sanitized = _normalized(user_id)
     if not sanitized:
         return None
     try:
-        result = execute_jira_tool(
+        result = await execute_jira_tool(
             "JIRA_GET_CURRENT_USER",
             sanitized,
             arguments={
@@ -162,7 +162,7 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
         client = _get_composio_client(settings)
         
         # Check if already connected
-        items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"], statuses=["ACTIVE"])
+        items = await client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"], statuses=["ACTIVE"])
         data = getattr(items, "data", None) or (items.get("data") if isinstance(items, dict) else None)
         
         if data and len(data) > 0:
@@ -177,7 +177,7 @@ async def jira_initiate_connect(payload: JiraConnectPayload, settings: Settings)
                 }
             )
 
-        req = client.connected_accounts.initiate(
+        req = await client.connected_accounts.initiate(
             user_id=user_id,
             auth_config_id=auth_config_id,
             config={
@@ -225,16 +225,16 @@ async def jira_fetch_status(payload: JiraStatusPayload, background_tasks: Option
         
         if connection_request_id:
             try:
-                account = client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
+                account = await client.connected_accounts.wait_for_connection(connection_request_id, timeout=2.0)
             except Exception as exc:
                 logger.warning("Wait for connection failed, attempting direct fetch", extra={"id": connection_request_id})
                 try: 
-                    account = client.connected_accounts.get(connection_request_id)
+                    account = await client.connected_accounts.get(connection_request_id)
                 except Exception as inner_exc:
                     logger.error("Direct fetch also failed", extra={"id": connection_request_id, "error": str(inner_exc)})
 
         if account is None and user_id:
-            items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"], statuses=["ACTIVE"])
+            items = await client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"], statuses=["ACTIVE"])
             data = getattr(items, "data", None) or (items.get("data") if isinstance(items, dict) else None)
             if data: account = data[0]
 
@@ -249,7 +249,7 @@ async def jira_fetch_status(payload: JiraStatusPayload, background_tasks: Option
             details = _extract_jira_details(account)
 
         if connected and user_id:
-            profile = _get_cached_profile(user_id) or _fetch_profile_from_composio(user_id)
+            profile = _get_cached_profile(user_id) or await _fetch_profile_from_composio(user_id)
             if profile:
                 p_details = _extract_jira_details(profile)
                 for k in details:
@@ -291,7 +291,7 @@ async def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONRespons
 
     if connection_id:
         try:
-            client.connected_accounts.delete(connection_id)
+            await client.connected_accounts.delete(connection_id)
             removed_ids.append(connection_id)
         except Exception as exc:
             logger.error("Failed to delete Jira connection by ID", 
@@ -299,13 +299,13 @@ async def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONRespons
 
     elif user_id:
         try:
-            items = client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"])
+            items = await client.connected_accounts.list(user_ids=[user_id], toolkit_slugs=["JIRA"])
             data = getattr(items, "data", [])
             for entry in data:
                 cid = getattr(entry, "id", None)
                 if cid:
                     try:
-                        client.connected_accounts.delete(cid)
+                        await client.connected_accounts.delete(cid)
                         removed_ids.append(cid)
                     except Exception as exc:
                         logger.error("Failed to delete Jira connection during bulk removal", 
@@ -320,7 +320,7 @@ async def jira_disconnect_account(payload: JiraDisconnectPayload) -> JSONRespons
 
     return JSONResponse({"ok": True, "disconnected": bool(removed_ids), "removed_connection_ids": removed_ids})
 
-def execute_jira_tool(
+async def execute_jira_tool(
     tool_name: str, 
     composio_user_id: str, 
     *, 
@@ -331,7 +331,7 @@ def execute_jira_tool(
     try:
         client = _get_composio_client()
         logger.info(f"BEFORE CALLING client.client.tools.execute: tool_name={tool_name.upper()}, user_id={composio_user_id}, version={version}, arguments={prepared_args}")
-        result = client.client.tools.execute(
+        result = await client.client.tools.execute(
             tool_name.upper(), 
             user_id=composio_user_id, 
             arguments=prepared_args,
@@ -346,14 +346,14 @@ def execute_jira_tool(
         logger.exception("Jira tool execution failed", extra={"tool": tool_name, "user_id": composio_user_id})
         raise RuntimeError(f"{tool_name} failed: {exc}") from exc
 
-def enable_jira_trigger(trigger_name: str, user_id: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def enable_jira_trigger(trigger_name: str, user_id: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     sanitized_user_id = _normalized(user_id)
     if not sanitized_user_id:
         return {"status": "FAILED", "error": "Missing user_id"}
 
     try:
         client = _get_composio_client()
-        result = client.triggers.create(
+        result = await client.triggers.create(
             slug=trigger_name.upper(),
             user_id=sanitized_user_id,
             trigger_config=arguments
