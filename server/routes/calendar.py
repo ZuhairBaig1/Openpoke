@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from ..config import Settings, get_settings
 from ..models import CalendarConnectPayload, CalendarDisconnectPayload, CalendarStatusPayload
-from ..services.calendar import disconnect_calendar_account, fetch_calendar_status, initiate_calendar_connect, process_event
+from ..services.calendar import disconnect_calendar_account, fetch_calendar_status, initiate_calendar_connect
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
