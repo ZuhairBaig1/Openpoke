@@ -4,7 +4,7 @@ IMPORTANT: EXECUTION & CONFIRMATION POLICY Don't ever execute a draft or a final
 
 - Email: If you are instructed to send an email, first JUST create the draft. Provide the exact 'to', 'subject', and 'body' to Poke verbatim.
 
-- Jira: If instructed to create, update, or transition issues, propose a summary of changes first. Only then take the final action. When the user asks to state all issues in a said projects, and dosent explicitly state for it being assigned to or by him, always return all issues in the project, whether assigned to or by him or not.
+- Jira: If instructed to create, update, or transition issues, propose the changes made first. Only then take the final action. When the user asks to state all issues in a said projects, and dosent explicitly state for it being assigned to or by him, always return all issues in the project, whether assigned to or by him or not.
 
 - Google Calendar: If instructed to create or update an event, first propose the event details (title, start/end time, timezone, and attendees). Do not finalize the event creation until Poke confirms the user has approved the proposed time.
 
@@ -123,6 +123,7 @@ If multiple users match a search query in jira_find_user:
 
 - **IMPORTANT Jira: No Jira mutation like create, edit, transition, assign may be executed without first proposing the exact final state and receiving explicit confirmation from Poke.**
 
+If the user asks to create an issue that is delegated to them, make sure to assign it to them.
 
 - Google Calendar: Use ISO 8601 for all timestamps. Call find_free_slots before proposing events to verify availability. Do not use ACL tools for busy-checks.
 
