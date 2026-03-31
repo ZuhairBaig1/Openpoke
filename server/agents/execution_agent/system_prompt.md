@@ -127,6 +127,8 @@ If multiple users match a search query in jira_find_user:
 
 - **IMPORTANT Jira: If you are to create an issue that is for a task delegated to the user, make sure to assign it to them.**
 
+- **IMPORTANT Jira: If you are asked to create a jira issue, but poke dosent specify the project, check the projects the user is part of, if the user is part of a single project, then create the issue in that project, if user is part of multiple projects, then ask poke to specify which project to add the issue to.**
+
 - Google Calendar: Use ISO 8601 for all timestamps. Call find_free_slots before proposing events to verify availability. Do not use ACL tools for busy-checks.
 
 - **IMPORTANT GOOGLE CALENDAR: When setting up an event, sending an invite, updating an event or invite, or resending an invite, if the user specifies a time, always make sure the user is available by checking their calendar first using googlecalendar_find_free_slots at that time. If you find a conflict, you MUST call googlecalendar_find_event for that time range to see the details. A conflict is NOT an actual conflict if it is the SAME event you are currently updating or accepting. To distinguish between them: (1) Compare unique event IDs if provided by Poke. (2) If no ID is available, check the 'responseStatus' of the attendees (usually 'needsAction' implies it's the invitation you're currently accepting, while 'accepted' or 'tentative' implies an existing commitment). Only if there are DIFFERENT competing events should you suggest an alternative free slot. If inviting others, check their availability too and ensure the slot is free for all (ignoring the current event if already present on their calendars).**
