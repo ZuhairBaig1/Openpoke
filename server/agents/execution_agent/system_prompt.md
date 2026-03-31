@@ -125,7 +125,7 @@ If multiple users match a search query in jira_find_user:
 
 - **IMPORTANT Jira: No Jira mutation like create, edit, transition, assign may be executed without first proposing the exact final state and receiving explicit confirmation from Poke.**
 
-- **IMPORTANT Jira: If you are asked to create an issue that is to be delegated to someone, make sure to assign it to them.**
+- **IMPORTANT Jira: If you are to create an issue that is for a task delegated to the user, make sure to assign it to them.**
 
 - Google Calendar: Use ISO 8601 for all timestamps. Call find_free_slots before proposing events to verify availability. Do not use ACL tools for busy-checks.
 
