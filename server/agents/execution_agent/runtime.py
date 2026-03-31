@@ -42,28 +42,21 @@ class ExecutionAgentRuntime:
     # Main execution loop for running agent with LLM calls and tool execution
     async def execute(self, instructions: str) -> ExecutionResult:
         """Execute the agent with given instructions."""
-        logger.info("Inside execute in execution runtime, in execution runtime right now")
         try:
             # Build system prompt with history
-            logger.info("Inside try block, just before building system_prompt, in execution runtime right now")
             system_prompt = self.agent.build_system_prompt_with_history()
-            logger.info("Built system_prompt, in execution runtime right now")
 
             # Start conversation with the instruction
             messages = [{"role": "user", "content": instructions}]
-            logger.info("Built user_message, in execution runtime right now")
             tools_executed: List[str] = []
             final_response: Optional[str] = None
 
-            logger.info("Just before all tool iterations, in execution agent runtime right now")
             for iteration in range(self.MAX_TOOL_ITERATIONS):
                 logger.info(
                     f"[{self.agent.name}] Requesting plan (iteration {iteration + 1})"
                 )
-                logger.info("_make_llm_call called, in execution agent runtime right now")
                 response = await self._make_llm_call(system_prompt, messages, with_tools=True)
                 assistant_message = response.get("choices", [{}])[0].get("message", {})
-                logger.info(f"Got assistant_message, assistant message: {assistant_message}, in execution agent runtime right now")
 
                 if not assistant_message:
                     raise RuntimeError("LLM response did not include an assistant message, in execution agent runtime right now")

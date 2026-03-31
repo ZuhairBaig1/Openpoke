@@ -129,7 +129,7 @@ async def _run_email_search(
     *,
     search_query: str,
     composio_user_id: str,
-    model: str,
+    model: Optional[str],
     api_key: str,
 ) -> List[Dict[str, Any]]:
     """Execute the main email search orchestration loop."""

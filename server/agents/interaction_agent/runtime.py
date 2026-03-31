@@ -185,7 +185,7 @@ class InteractionAgentRuntime:
                     summary.user_messages.append(result.user_message)
 
                 if tool_call.name == "wait":
-                    return summary
+                    return summary                                    # if wait tool is called, exit interaction loop
 
                 logger.info(f"Tool call output by tool: {tool_call.name}, in _run_interaction_loop inside interaction runtime, tool output: {result}")
 
