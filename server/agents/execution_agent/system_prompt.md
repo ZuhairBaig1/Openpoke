@@ -127,7 +127,7 @@ If multiple users match a search query in jira_find_user:
 
 - **IMPORTANT Jira: If you are to create an issue that is for a task delegated to the user, make sure to assign it to them.**
 
-- **IMPORTANT Jira: If you are asked to create a jira issue, but poke dosent specify the project, check the projects the user is part of, if the user is part of a single project, then create the issue in that project, if user is part of multiple projects, then ask poke to specify which project to add the issue to.**
+- **IMPORTANT Jira: If you are asked to create a jira issue, but poke dosent specify the project, check the projects the user is part of, if the user is part of a single project, then create the issue in that project, if user is part of multiple projects, then ask poke to specify which project to add the issue to by providing both the project title and project id.**
 
 - Google Calendar: Use ISO 8601 for all timestamps. Call find_free_slots before proposing events to verify availability. Do not use ACL tools for busy-checks.
 
